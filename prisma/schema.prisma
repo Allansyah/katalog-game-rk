@@ -1,0 +1,435 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  SUPPLIER
+  RESELLER
+}
+
+enum AccountStatus {
+  AVAILABLE
+  LOCKED
+  SOLD
+}
+
+enum TopupRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LogType {
+  TOPUP
+  DEDUCTION
+  EARNING
+  WITHDRAWAL
+  TRANSFER
+  SALES_RELEASED
+}
+
+enum PendingBalanceStatus {
+  PENDING
+  RELEASED
+}
+
+enum WithdrawalType {
+  WITHDRAW // Tarik ke rekening bank
+  TRANSFER // Pindah ke saldo pembelian
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ActivityAction {
+  // Authentication
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+
+  // User Management
+  USER_CREATE
+  USER_UPDATE
+  USER_DELETE
+  USER_BAN
+  USER_UNBAN
+
+  // Account Management
+  ACCOUNT_CREATE
+  ACCOUNT_UPDATE
+  ACCOUNT_DELETE
+  ACCOUNT_EXTRACT
+
+  // Game & Character & Weapon & Server
+  GAME_CREATE
+  GAME_UPDATE
+  GAME_DELETE
+  CHARACTER_CREATE
+  CHARACTER_UPDATE
+  CHARACTER_DELETE
+  WEAPON_CREATE
+  WEAPON_UPDATE
+  WEAPON_DELETE
+  SERVER_CREATE
+  SERVER_UPDATE
+  SERVER_DELETE
+
+  // Tier Management
+  TIER_CREATE
+  TIER_UPDATE
+  TIER_DELETE
+
+  // Finance
+  TOPUP_REQUEST
+  TOPUP_APPROVE
+  TOPUP_REJECT
+  WITHDRAW_REQUEST
+  WITHDRAW_APPROVE
+  WITHDRAW_REJECT
+  TRANSFER_BALANCE
+
+  // Settings
+  PLATFORM_SETTINGS_UPDATE
+
+  // Payment Methods & Packages
+  PAYMENT_METHOD_CREATE
+  PAYMENT_METHOD_UPDATE
+  PAYMENT_METHOD_DELETE
+  TOPUP_PACKAGE_CREATE
+  TOPUP_PACKAGE_UPDATE
+  TOPUP_PACKAGE_DELETE
+
+  // Profile
+  PASSWORD_CHANGE
+  PROFILE_UPDATE
+}
+
+model User {
+  id                 String                 @id @default(cuid())
+  name               String
+  email              String                 @unique
+  passwordHash       String
+  role               Role                   @default(RESELLER)
+  balance            Float                  @default(0) // Saldo Pembelian
+  salesBalance       Float                  @default(0) // Saldo Penjualan (Supplier only)
+  pendingBalance     Float                  @default(0) // Total pending (for display only)
+  tierId             String?
+  tier               ResellerTier?          @relation(fields: [tierId], references: [id])
+  totalSpent         Float                  @default(0)
+  isBanned           Boolean                @default(false)
+  purchases          Transaction[]          @relation("ResellerPurchases")
+  supplierAccounts   Account[]              @relation("SupplierAccounts")
+  balanceLogs        BalanceLog[]
+  topupRequests      TopupRequest[]
+  pendingBalances    PendingBalanceRecord[]
+  withdrawalRequests WithdrawalRequest[]
+  activityLogs       ActivityLog[]          @relation("UserActivities")
+  trackedAccounts    TrackedAccount[]
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@index([isBanned])
+}
+
+model ResellerTier {
+  id              String  @id @default(cuid())
+  name            String // Bronze (5%), Silver (10%), Gold (15%), Platinum (20%)
+  discountPercent Float
+  minTotalSales   Float
+  color           String?
+  isDefault       Boolean @default(false)
+  users           User[]
+}
+
+model Game {
+  id         String      @id @default(cuid())
+  name       String
+  code       String      @unique // WW, GI, ZZZ, HSR, SDG
+  icon       String?
+  status     Boolean     @default(true)
+  characters Character[]
+  weapons    Weapon[]
+  servers    Server[]
+  accounts   Account[]
+}
+
+model Character {
+  id       String             @id @default(cuid())
+  gameId   String
+  game     Game               @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  name     String
+  imageUrl String?
+  rarity   Int?
+  element  String?
+  accounts AccountCharacter[]
+
+  @@unique([gameId, name])
+  @@index([gameId])
+}
+
+model Weapon {
+  id         String          @id @default(cuid())
+  gameId     String
+  game       Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  name       String
+  imageUrl   String?
+  rarity     Int?
+  weaponType String? // Sword, Bow, Catalyst, Claymore, Polearm, etc.
+  element    String? // For games with elemental weapons
+  accounts   AccountWeapon[]
+
+  @@unique([gameId, name])
+  @@index([gameId])
+}
+
+model Server {
+  id       String    @id @default(cuid())
+  gameId   String
+  game     Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  name     String // Indonesia, Global, SEA, America, Europe, etc.
+  code     String? // ID, GL, SEA, US, EU, etc.
+  status   Boolean   @default(true)
+  accounts Account[]
+
+  @@unique([gameId, name])
+  @@index([gameId])
+}
+
+model Account {
+  id             String             @id @default(cuid())
+  publicId       String             @unique // Format: GAMECODE-TIMESTAMP-RANDOM
+  gameId         String
+  game           Game               @relation(fields: [gameId], references: [id])
+  supplierId     String
+  supplier       User               @relation("SupplierAccounts", fields: [supplierId], references: [id])
+  serverId       String?
+  server         Server?            @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  level          Int?
+  diamond        Int                @default(0)
+  gender         String?
+  characters     AccountCharacter[]
+  weapons        AccountWeapon[]
+  basePrice      Float
+  status         AccountStatus      @default(AVAILABLE)
+  isDeleted      Boolean            @default(false)
+  encryptedLogin String // AES-256 encrypted JSON
+  transaction    Transaction?
+  trackedBy      TrackedAccount[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([gameId])
+  @@index([status])
+  @@index([supplierId])
+  @@index([publicId])
+  @@index([serverId])
+}
+
+model AccountCharacter {
+  accountId   String
+  characterId String
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([accountId, characterId])
+}
+
+model AccountWeapon {
+  accountId String
+  weaponId  String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  weapon    Weapon  @relation(fields: [weaponId], references: [id], onDelete: Cascade)
+
+  @@id([accountId, weaponId])
+}
+
+model Transaction {
+  id              String                @id @default(cuid())
+  accountId       String                @unique
+  account         Account               @relation(fields: [accountId], references: [id])
+  resellerId      String
+  reseller        User                  @relation("ResellerPurchases", fields: [resellerId], references: [id])
+  basePrice       Float // Harga asli akun
+  platformFee     Float // Fee platform (persentase)
+  finalPrice      Float // basePrice + platformFee
+  pendingBalance  PendingBalanceRecord?
+  platformEarning PlatformEarning?
+  createdAt       DateTime              @default(now())
+
+  @@index([resellerId])
+  @@index([createdAt])
+}
+
+model BalanceLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  amount      Float
+  type        LogType
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Payment Method - Bank Transfer, E-Wallet, etc.
+model PaymentMethod {
+  id            String         @id @default(cuid())
+  name          String // BCA, Mandiri, GoPay, OVO, DANA, etc.
+  type          String // BANK_TRANSFER, E_WALLET, QRIS
+  accountNo     String? // Account number / VA number
+  accountName   String? // Account holder name
+  imageUrl      String? // Logo URL
+  instructions  String? // Payment instructions
+  status        Boolean        @default(true)
+  topupRequests TopupRequest[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([type])
+  @@index([status])
+}
+
+// Top-up Package - Denominations available
+model TopupPackage {
+  id          String   @id @default(cuid())
+  amount      Float // 10000, 15000, 20000, etc.
+  bonus       Float    @default(0) // Bonus amount if any
+  description String? // "Special bonus", etc.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// Top-up Request from Supplier/Reseller
+model TopupRequest {
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id])
+  amount          Float
+  paymentMethodId String
+  paymentMethod   PaymentMethod      @relation(fields: [paymentMethodId], references: [id])
+  status          TopupRequestStatus @default(PENDING)
+  proofUrl        String? // Payment proof image URL
+  notes           String? // Notes from user
+  adminNotes      String? // Notes from admin (rejection reason, etc.)
+  processedAt     DateTime? // When admin processed
+  processedBy     String? // Admin user ID
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Pending Balance - Sales earnings waiting for release (7 days)
+model PendingBalanceRecord {
+  id            String               @id @default(cuid())
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id])
+  amount        Float
+  transactionId String               @unique
+  transaction   Transaction          @relation(fields: [transactionId], references: [id])
+  releaseDate   DateTime // Date when balance will be released (7 days from transaction)
+  status        PendingBalanceStatus @default(PENDING)
+  createdAt     DateTime             @default(now())
+  releasedAt    DateTime? // When actually released
+
+  @@index([userId])
+  @@index([status])
+  @@index([releaseDate])
+}
+
+// Withdrawal Request - User request to withdraw or transfer balance
+model WithdrawalRequest {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  amount      Float
+  type        WithdrawalType // WITHDRAW or TRANSFER
+  source      String // "balance" or "salesBalance"
+  bankName    String? // For withdraw
+  bankAccount String? // For withdraw
+  accountName String? // For withdraw
+  status      WithdrawalStatus @default(PENDING)
+  notes       String? // User notes
+  adminNotes  String? // Admin notes
+  processedAt DateTime? // When admin processed
+  processedBy String? // Admin user ID
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Platform Settings - Global settings like platform fee
+model PlatformSettings {
+  id          String   @id @default(cuid())
+  platformFee Float    @default(20) // Percentage, default 20%
+  updatedAt   DateTime @updatedAt
+}
+
+// Platform Earnings - Revenue from platform fees
+model PlatformEarning {
+  id            String      @id @default(cuid())
+  amount        Float
+  transactionId String      @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@index([createdAt])
+}
+
+// Activity Log - Track all user activities
+model ActivityLog {
+  id         String         @id @default(cuid())
+  userId     String?
+  user       User?          @relation("UserActivities", fields: [userId], references: [id], onDelete: SetNull)
+  action     ActivityAction
+  entityType String? // User, Account, Game, Character, Tier, etc.
+  entityId   String? // ID of the affected entity
+  entityName String? // Name/title for display
+  ipAddress  String?
+  userAgent  String?
+  details    String? // JSON string for additional details
+  createdAt  DateTime       @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// Tracked Account - Users can track accounts to monitor status
+model TrackedAccount {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, accountId]) // Prevent duplicate tracking
+  @@index([userId])
+  @@index([accountId])
+}
