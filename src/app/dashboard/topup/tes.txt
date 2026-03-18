@@ -1,0 +1,363 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Wallet,
+  Loader2,
+  Gift,
+  Check,
+  Clock,
+  XCircle,
+  CheckCircle,
+  MessageCircle,
+  ExternalLink,
+  RefreshCw,
+  X,
+  Ban,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { TopupRequestStatus } from "@prisma/client";
+import { useUserBalance } from "@/hooks/useUserBalance";
+
+// ... Interfaces (sama seperti sebelumnya)
+
+interface PaymentMethod {
+  id: string;
+  name: string;
+  type: string;
+  accountNo: string | null;
+  accountName: string | null;
+  instructions: string | null;
+  imageUrl: string | null;
+  status: boolean;
+}
+
+interface TopupPackage {
+  id: string;
+  amount: number;
+  bonus: number;
+  description: string | null;
+}
+
+interface TopupRequest {
+  id: string;
+  amount: number;
+  status: TopupRequestStatus;
+  notes: string | null;
+  adminNotes: string | null;
+  createdAt: string;
+  paymentMethod: { name: string };
+}
+
+export default function TopupPage() {
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const {
+    balance,
+    isLoading: balanceLoading,
+    refreshBalance,
+  } = useUserBalance();
+
+  const [selectedPackage, setSelectedPackage] = useState<TopupPackage | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [lastRequest, setLastRequest] = useState<{
+    amount: number;
+    methodName: string;
+  } | null>(null);
+
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  // Fetch data hooks (sama seperti sebelumnya)
+  const { data: methodsData } = useQuery({
+    queryKey: ["payment-methods"],
+    queryFn: async () => {
+      const res = await fetch("/api/payment-methods");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const { data: packagesData } = useQuery({
+    queryKey: ["topup-packages"],
+    queryFn: async () => {
+      const res = await fetch("/api/topup-packages");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const { data: requestsData, refetch: refetchRequests } = useQuery({
+    queryKey: ["my-topup-requests"],
+    queryFn: async () => {
+      const res = await fetch("/api/topup-requests");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const { data: whatsappData } = useQuery({
+    queryKey: ["whatsapp-number"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings/whatsapp");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  // Create Mutation
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const amount = selectedPackage?.amount || parseFloat(customAmount);
+      if (!amount || amount <= 0) throw new Error("Invalid amount");
+      if (!selectedMethod) throw new Error("Please select payment method");
+
+      const res = await fetch("/api/topup-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          paymentMethodId: selectedMethod,
+          notes,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to create request");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const method = methodsData?.methods?.find((m: PaymentMethod) => m.id === selectedMethod);
+      setLastRequest({
+        amount: selectedPackage?.amount || parseFloat(customAmount),
+        methodName: method?.name || "Unknown",
+      });
+      setIsModalOpen(false);
+      setSelectedPackage(null);
+      setCustomAmount("");
+      setSelectedMethod("");
+      setNotes("");
+      refetchRequests();
+      refreshBalance();
+      setShowSuccessModal(true);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // === TAMBAHAN: Cancel Mutation ===
+  // Ini yang tadi hilang di kode Anda
+  const cancelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/topup-requests/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to cancel request");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Request cancelled successfully");
+      refetchRequests();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleSelectPackage = (pkg: TopupPackage) => {
+    setSelectedPackage(pkg);
+    setCustomAmount("");
+    setIsModalOpen(true);
+  };
+
+  const handleCustomAmount = () => {
+    const amount = parseFloat(customAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    setSelectedPackage(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = () => {
+    createMutation.mutate();
+  };
+
+  const handleOpenWhatsApp = () => {
+    if (!whatsappData?.whatsappNumber || !lastRequest) return;
+    const message = encodeURIComponent(
+      `Halo Admin Rikkastore,\n\n` +
+        `Saya sudah melakukan request top-up:\n` +
+        `• Amount: Rp ${lastRequest.amount.toLocaleString()}\n` +
+        `• Payment Method: ${lastRequest.methodName}\n\n` +
+        `Mohon dikonfirmasi. Terima kasih!`
+    );
+    const whatsappUrl = `https://wa.me/${whatsappData.whatsappNumber}?text=${message}`;
+    window.open(whatsappUrl, "_blank");
+    setShowSuccessModal(false);
+  };
+
+  const handleImageClick = (url: string) => {
+    setPreviewImageUrl(url);
+    setIsImagePreviewOpen(true);
+  };
+
+  const getStatusBadge = (status: TopupRequestStatus) => {
+    const configs: Record<TopupRequestStatus, { bg: string; text: string; icon: React.ElementType }> = {
+      PENDING: { bg: "bg-yellow-600/20", text: "text-yellow-400", icon: Clock },
+      APPROVED: { bg: "bg-emerald-600/20", text: "text-emerald-400", icon: CheckCircle },
+      REJECTED: { bg: "bg-red-600/20", text: "text-red-400", icon: XCircle },
+    };
+    const config = configs[status];
+    const Icon = config.icon;
+    return (
+      <Badge className={`${config.bg} ${config.text} gap-1`}>
+        <Icon className="h-3 w-3" />
+        {status}
+      </Badge>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold text-white">Top-up Balance</h1>
+        <p className="text-zinc-400">Add balance to your account</p>
+      </div>
+
+      {/* Current Balance */}
+      <Card className="bg-zinc-900 border-zinc-800">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-zinc-400 text-sm">Current Balance</p>
+              <div className="flex items-center gap-2">
+                <p className="text-3xl font-bold text-emerald-400">Rp {balance?.toLocaleString() || 0}</p>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refreshBalance()} disabled={balanceLoading}>
+                  <RefreshCw className={`h-4 w-4 text-zinc-400 ${balanceLoading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+            </div>
+            <Wallet className="h-12 w-12 text-emerald-500" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Top-up Packages */}
+      <div>
+        <h2 className="text-xl font-semibold text-white mb-4">Select Amount</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {packagesData?.packages?.map((pkg: TopupPackage) => (
+            <Card key={pkg.id} className="bg-zinc-900 border-zinc-800 hover:border-emerald-600/50 cursor-pointer transition-colors" onClick={() => handleSelectPackage(pkg)}>
+              <CardContent className="p-4 text-center">
+                <div className="text-xl font-bold text-white mb-1">Rp {pkg.amount.toLocaleString()}</div>
+                {pkg.bonus > 0 && (
+                  <Badge className="bg-emerald-600/20 text-emerald-400 mb-2">
+                    <Gift className="h-3 w-3 mr-1" />+Rp {pkg.bonus.toLocaleString()}
+                  </Badge>
+                )}
+                {pkg.description && <p className="text-xs text-zinc-500">{pkg.description}</p>}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom Amount */}
+      <Card className="bg-zinc-900 border-zinc-800">
+        <CardContent className="p-4">
+          <Label className="text-zinc-400 mb-2 block">Or enter custom amount</Label>
+          <div className="flex gap-2">
+            <Input type="number" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} placeholder="Enter amount (e.g., 50000)" className="bg-zinc-800 border-zinc-700" />
+            <Button onClick={handleCustomAmount} className="bg-emerald-600 hover:bg-emerald-700">Request</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* My Requests History - PERBAIKAN DI SINI */}
+      <div>
+        <h2 className="text-xl font-semibold text-white mb-4">My Top-up History</h2>
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardContent className="p-0">
+            {requestsData?.requests?.length === 0 ? (
+              <div className="text-center text-zinc-500 py-8">No top-up history yet</div>
+            ) : (
+              <div className="divide-y divide-zinc-800">
+                {requestsData?.requests?.slice(0, 10).map((req: TopupRequest) => (
+                  <div key={req.id} className="p-4 flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-white font-semibold">Rp {req.amount.toLocaleString()}</p>
+                      <p className="text-xs text-zinc-500">
+                        {req.paymentMethod.name} • {new Date(req.createdAt).toLocaleDateString()}
+                      </p>
+                      {req.adminNotes && <p className="text-xs text-zinc-400 mt-1">Note: {req.adminNotes}</p>}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(req.status)}
+
+                      {/* === INI BAGIAN YANG HILANG: TOMBOL CANCEL === */}
+                      {req.status === TopupRequestStatus.PENDING && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-400 hover:bg-red-500/10 h-8 w-8"
+                          onClick={() => {
+                            if (confirm("Are you sure you want to cancel this request?")) {
+                              cancelMutation.mutate(req.id);
+                            }
+                          }}
+                          disabled={cancelMutation.isPending}
+                        >
+                          {cancelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Modals (Modal Request, Preview, Success) tetap sama persis seperti kode Anda sebelumnya */}
+      {/* ... Saya tidak tulis ulang semua modal agar jawaban tidak terlalu panjang, tapi pastikan Anda menyalinnya dari kode lama atau biarkan ada di bawah ... */}
+      
+      {/* PASTE MODALS ANDA DI BAWAH SINI (Mulai dari Dialog Top-up Request sampai akhir) */}
+      {/* ... */}
+    </div>
+  );
+}
