@@ -1,12 +1,27 @@
 import { PrismaClient, Role } from "@prisma/client";
 import { hash } from "bcrypt";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
+
+// Fungsi untuk mengenkripsi data login (dummy encryption untuk seed)
+function encryptDummy(data: object): string {
+  const json = JSON.stringify(data);
+  // Di production, gunakan AES-256 yang proper. Untuk seed, kita cukup encode base64.
+  return Buffer.from(json).toString("base64");
+}
+
+// Fungsi untuk generate publicId dengan format: GAMECODE-TIMESTAMP-RANDOM
+function generatePublicId(gameCode: string): string {
+  const timestamp = Date.now().toString(36);
+  const random = crypto.randomBytes(4).toString("hex").toUpperCase();
+  return `${gameCode}-${timestamp}-${random}`;
+}
 
 async function main() {
   console.log("🌱 Starting seed...");
 
-  // Create Reseller Tiers
+  // Create Reseller Tiers (sama seperti sebelumnya)
   const tiers = await Promise.all([
     prisma.resellerTier.upsert({
       where: { id: "tier-bronze" },
@@ -60,7 +75,7 @@ async function main() {
 
   console.log("✅ Created tiers:", tiers.map((t) => t.name).join(", "));
 
-  // Create Users
+  // Create Users (sama seperti sebelumnya)
   const passwordHash = await hash("123456", 10);
 
   const admin = await prisma.user.upsert({
@@ -92,7 +107,7 @@ async function main() {
     },
   });
 
-  const resellerPassword = await hash("reseller123", 10);
+  const resellerPassword = await hash("123456", 10);
   const reseller = await prisma.user.upsert({
     where: { email: "reseller@catalog.com" },
     update: {},
@@ -112,7 +127,7 @@ async function main() {
   console.log("   - supplier@catalog.com (password: 123456) - SUPPLIER");
   console.log("   - reseller@catalog.com (password: 123456) - RESELLER");
 
-  // Create Games
+  // Create Games (sama seperti sebelumnya)
   const mlGame = await prisma.game.upsert({
     where: { code: "ML" },
     update: {},
@@ -148,7 +163,7 @@ async function main() {
     [mlGame, giGame, ffGame].map((g) => g.name).join(", ")
   );
 
-  // Create Characters for Mobile Legends
+  // Create Characters for Mobile Legends (sama seperti sebelumnya)
   const mlCharacters = await Promise.all([
     prisma.character.upsert({
       where: { gameId_name: { gameId: mlGame.id, name: "Layla" } },
@@ -179,7 +194,7 @@ async function main() {
 
   console.log("✅ Created ML characters:", mlCharacters.length);
 
-  // Create Weapons for Games
+  // Create Weapons for Games (sama seperti sebelumnya)
   const mlWeapons = await Promise.all([
     prisma.weapon.upsert({
       where: { gameId_name: { gameId: mlGame.id, name: "Endless Battle" } },
@@ -263,7 +278,7 @@ async function main() {
   console.log("✅ Created ML weapons:", mlWeapons.length);
   console.log("✅ Created GI weapons:", giWeapons.length);
 
-  // Create Servers for Games
+  // Create Servers for Games (sama seperti sebelumnya)
   const mlServers = await Promise.all([
     prisma.server.upsert({
       where: { gameId_name: { gameId: mlGame.id, name: "Indonesia" } },
@@ -336,6 +351,175 @@ async function main() {
   console.log("✅ Created ML servers:", mlServers.length);
   console.log("✅ Created GI servers:", giServers.length);
   console.log("✅ Created FF servers:", ffServers.length);
+
+  // ------------------------------------------------------------------
+  // TAMBAHAN: Membuat contoh Account untuk supplier dengan multi karakter & weapon + quantity
+  // ------------------------------------------------------------------
+
+  // Ambil server yang sudah dibuat
+  const mlServerId = mlServers.find((s) => s.code === "ID")?.id;
+  const giServerId = giServers.find((s) => s.code === "ASIA")?.id;
+
+  // Data login dummy untuk dienkripsi
+  const loginData = {
+    username: "user_demo",
+    password: "pass123",
+    email: "demo@mail.com",
+  };
+  const encrypted = encryptDummy(loginData);
+
+  // Buat beberapa akun
+  const account1 = await prisma.account.create({
+    data: {
+      publicId: generatePublicId("ML"),
+      gameId: mlGame.id,
+      supplierId: supplier.id,
+      serverId: mlServerId,
+      level: 120,
+      diamond: 5000,
+      gender: "MALE",
+      basePrice: 250000,
+      status: "AVAILABLE",
+      encryptedLogin: encrypted,
+      characters: {
+        create: [
+          {
+            characterId: mlCharacters.find((c) => c.name === "Layla")!.id,
+            quantity: 2,
+          },
+          {
+            characterId: mlCharacters.find((c) => c.name === "Gusion")!.id,
+            quantity: 3,
+          },
+          {
+            characterId: mlCharacters.find((c) => c.name === "Chou")!.id,
+            quantity: 1,
+          },
+        ],
+      },
+      weapons: {
+        create: [
+          {
+            weaponId: mlWeapons.find((w) => w.name === "Blade of Despair")!.id,
+            quantity: 1,
+          },
+          {
+            weaponId: mlWeapons.find((w) => w.name === "Endless Battle")!.id,
+            quantity: 2,
+          },
+        ],
+      },
+    },
+  });
+
+  const account2 = await prisma.account.create({
+    data: {
+      publicId: generatePublicId("GI"),
+      gameId: giGame.id,
+      supplierId: supplier.id,
+      serverId: giServerId,
+      level: 55,
+      diamond: 12000,
+      gender: "FEMALE",
+      basePrice: 500000,
+      status: "AVAILABLE",
+      encryptedLogin: encryptDummy({ ...loginData, username: "traveler_gi" }),
+      characters: {
+        create: [
+          // Untuk Genshin, kita belum membuat character di seed. Jadi kita perlu membuat beberapa karakter GI dulu.
+          // Mari kita buat beberapa karakter GI setelah ini.
+        ],
+      },
+      weapons: {
+        create: [
+          {
+            weaponId: giWeapons.find((w) => w.name === "Mistsplitter Reforged")!
+              .id,
+            quantity: 1,
+          },
+          {
+            weaponId: giWeapons.find((w) => w.name === "Sacrificial Sword")!.id,
+            quantity: 2,
+          },
+        ],
+      },
+    },
+  });
+
+  // Karena GI belum punya karakter, kita buat beberapa karakter GI dulu.
+  const giCharacters = await Promise.all([
+    prisma.character.upsert({
+      where: { gameId_name: { gameId: giGame.id, name: "Hu Tao" } },
+      update: {},
+      create: { gameId: giGame.id, name: "Hu Tao", rarity: 5, element: "Pyro" },
+    }),
+    prisma.character.upsert({
+      where: { gameId_name: { gameId: giGame.id, name: "Zhongli" } },
+      update: {},
+      create: { gameId: giGame.id, name: "Zhongli", rarity: 5, element: "Geo" },
+    }),
+    prisma.character.upsert({
+      where: { gameId_name: { gameId: giGame.id, name: "Xingqiu" } },
+      update: {},
+      create: {
+        gameId: giGame.id,
+        name: "Xingqiu",
+        rarity: 4,
+        element: "Hydro",
+      },
+    }),
+    prisma.character.upsert({
+      where: { gameId_name: { gameId: giGame.id, name: "Bennett" } },
+      update: {},
+      create: {
+        gameId: giGame.id,
+        name: "Bennett",
+        rarity: 4,
+        element: "Pyro",
+      },
+    }),
+  ]);
+
+  // Update account2 dengan karakter
+  await prisma.account.update({
+    where: { id: account2.id },
+    data: {
+      characters: {
+        create: [
+          {
+            characterId: giCharacters.find((c) => c.name === "Hu Tao")!.id,
+            quantity: 1,
+          },
+          {
+            characterId: giCharacters.find((c) => c.name === "Zhongli")!.id,
+            quantity: 1,
+          },
+          {
+            characterId: giCharacters.find((c) => c.name === "Xingqiu")!.id,
+            quantity: 3,
+          },
+          {
+            characterId: giCharacters.find((c) => c.name === "Bennett")!.id,
+            quantity: 2,
+          },
+        ],
+      },
+    },
+  });
+
+  console.log(
+    "✅ Created sample accounts with characters & weapons (with quantity):"
+  );
+  console.log(
+    `   - ML Account: ${account1.publicId} (Rp ${account1.basePrice}) - Layla x2, Gusion x3, Chou x1`
+  );
+  console.log(
+    `   - GI Account: ${account2.publicId} (Rp ${account2.basePrice}) - Hu Tao, Zhongli, Xingqiu x3, Bennett x2`
+  );
+
+  // ------------------------------------------------------------------
+  // Lanjut ke pembuatan Payment Methods, Topup Packages, Platform Settings
+  // ------------------------------------------------------------------
 
   // Create Payment Methods
   const paymentMethods = await Promise.all([

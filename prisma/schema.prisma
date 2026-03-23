@@ -211,7 +211,7 @@ model Server {
 
 model Account {
   id             String             @id @default(cuid())
-  publicId       String             @unique // Format: GAMECODE-TIMESTAMP-RANDOM
+  publicId       String             @unique 
   gameId         String
   game           Game               @relation(fields: [gameId], references: [id])
   supplierId     String
@@ -242,6 +242,7 @@ model Account {
 model AccountCharacter {
   accountId   String
   characterId String
+  quantity    Int       @default(1) // Jumlah copy karakter ini dalam akun
   account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
@@ -251,6 +252,7 @@ model AccountCharacter {
 model AccountWeapon {
   accountId String
   weaponId  String
+  quantity  Int     @default(1) // Jumlah copy weapon ini dalam akun (refinement atau banyak)
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   weapon    Weapon  @relation(fields: [weaponId], references: [id], onDelete: Cascade)
 

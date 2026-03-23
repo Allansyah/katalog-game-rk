@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getToken } from "next-auth/jwt";
 import { Role } from "@prisma/client";
 import { calculateEffectiveFee, getUserDiscountPercent } from "@/lib/tier";
+import { encryptCredentials } from "@/lib/encryption";
 
 // GET - Fetch single account details
 export async function GET(
@@ -56,25 +57,32 @@ export async function GET(
       };
     }
 
-    return NextResponse.json({
-      account: {
-        id: account.id,
-        publicId: account.publicId,
-        game: account.game,
-        level: account.level,
-        diamond: account.diamond,
-        serverId: account.serverId,
-        server: account.server,
-        gender: account.gender,
-        status: account.status,
-        basePrice: account.basePrice,
-        characters: account.characters.map((ac) => ac.character),
-        weapons: account.weapons.map((aw) => aw.weapon),
-        supplier: account.supplier,
-        createdAt: account.createdAt,
-        priceInfo,
-      },
-    });
+    // Transform to include quantity
+    const transformedAccount = {
+      id: account.id,
+      publicId: account.publicId,
+      game: account.game,
+      level: account.level,
+      diamond: account.diamond,
+      serverId: account.serverId,
+      server: account.server,
+      gender: account.gender,
+      status: account.status,
+      basePrice: account.basePrice,
+      characters: account.characters.map((ac) => ({
+        ...ac.character,
+        quantity: ac.quantity,
+      })),
+      weapons: account.weapons.map((aw) => ({
+        ...aw.weapon,
+        quantity: aw.quantity,
+      })),
+      supplier: account.supplier,
+      createdAt: account.createdAt,
+      priceInfo,
+    };
+
+    return NextResponse.json({ account: transformedAccount });
   } catch (error) {
     console.error("Error fetching account:", error);
     return NextResponse.json(
@@ -145,8 +153,8 @@ export async function PUT(
       diamond,
       serverId,
       gender,
-      characterIds,
-      weaponIds,
+      characterSelections, // Array of { characterId, quantity }
+      weaponSelections, // Array of { weaponId, quantity }
       basePrice,
       credentials,
     } = body;
@@ -188,38 +196,43 @@ export async function PUT(
 
     // Update credentials if provided
     if (credentials) {
-      const { encryptCredentials } = await import("@/lib/encryption");
       updateData.encryptedLogin = encryptCredentials(credentials);
     }
 
     // Update characters if provided
-    if (characterIds !== undefined) {
+    if (characterSelections !== undefined) {
       await db.accountCharacter.deleteMany({
         where: { accountId: id },
       });
 
-      if (characterIds?.length) {
+      if (characterSelections?.length) {
         await db.accountCharacter.createMany({
-          data: characterIds.map((charId: string) => ({
-            accountId: id,
-            characterId: charId,
-          })),
+          data: characterSelections.map(
+            (item: { characterId: string; quantity: number }) => ({
+              accountId: id,
+              characterId: item.characterId,
+              quantity: item.quantity || 1,
+            })
+          ),
         });
       }
     }
 
     // Update weapons if provided
-    if (weaponIds !== undefined) {
+    if (weaponSelections !== undefined) {
       await db.accountWeapon.deleteMany({
         where: { accountId: id },
       });
 
-      if (weaponIds?.length) {
+      if (weaponSelections?.length) {
         await db.accountWeapon.createMany({
-          data: weaponIds.map((wepId: string) => ({
-            accountId: id,
-            weaponId: wepId,
-          })),
+          data: weaponSelections.map(
+            (item: { weaponId: string; quantity: number }) => ({
+              accountId: id,
+              weaponId: item.weaponId,
+              quantity: item.quantity || 1,
+            })
+          ),
         });
       }
     }
@@ -243,7 +256,20 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({ account: updatedAccount });
+    // Transform response to include quantity
+    const transformedAccount = {
+      ...updatedAccount,
+      characters: updatedAccount.characters.map((ac) => ({
+        ...ac.character,
+        quantity: ac.quantity,
+      })),
+      weapons: updatedAccount.weapons.map((aw) => ({
+        ...aw.weapon,
+        quantity: aw.quantity,
+      })),
+    };
+
+    return NextResponse.json({ account: transformedAccount });
   } catch (error) {
     console.error("Error updating account:", error);
     return NextResponse.json(

@@ -1,34 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { getToken } from 'next-auth/jwt';
-import { Role } from '@prisma/client';
-import { encryptCredentials, generatePublicId } from '@/lib/encryption';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { getToken } from "next-auth/jwt";
+import { Role } from "@prisma/client";
+import { encryptCredentials, generatePublicId } from "@/lib/encryption";
 
 // GET - Public catalog access and supplier inventory
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const gameId = searchParams.get('gameId');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const search = searchParams.get('search');
-    const characters = searchParams.get('characters')?.split(',').filter(Boolean);
-    const weapons = searchParams.get('weapons')?.split(',').filter(Boolean);
-    const minDiamond = searchParams.get('minDiamond');
-    const maxDiamond = searchParams.get('maxDiamond');
-    const minLevel = searchParams.get('minLevel');
-    const maxLevel = searchParams.get('maxLevel');
-    const serverId = searchParams.get('serverId');
-    const gender = searchParams.get('gender');
-    const supplierOnly = searchParams.get('supplierOnly') === 'true';
-    const status = searchParams.get('status');
+    const gameId = searchParams.get("gameId");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const search = searchParams.get("search");
+    const characters = searchParams
+      .get("characters")
+      ?.split(",")
+      .filter(Boolean);
+    const weapons = searchParams.get("weapons")?.split(",").filter(Boolean);
+    const minDiamond = searchParams.get("minDiamond");
+    const maxDiamond = searchParams.get("maxDiamond");
+    const minLevel = searchParams.get("minLevel");
+    const maxLevel = searchParams.get("maxLevel");
+    const serverId = searchParams.get("serverId");
+    const gender = searchParams.get("gender");
+    const supplierOnly = searchParams.get("supplierOnly") === "true";
+    const status = searchParams.get("status");
 
     // Check authentication for supplier-only view
     let token = null;
     if (supplierOnly) {
       token = await getToken({ req: request });
       if (!token || token.role !== Role.SUPPLIER) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
     }
 
@@ -38,22 +41,25 @@ export async function GET(request: NextRequest) {
     if (supplierOnly) {
       where.supplierId = token?.id;
       where.isDeleted = false;
-      if (status && status !== 'all') {
+      if (status && status !== "all") {
         where.status = status;
       }
     } else {
       // Public catalog view
       if (!gameId) {
-        return NextResponse.json({ error: 'Game ID is required' }, { status: 400 });
+        return NextResponse.json(
+          { error: "Game ID is required" },
+          { status: 400 }
+        );
       }
       where.gameId = gameId;
-      where.status = 'AVAILABLE';
+      where.status = "AVAILABLE";
       where.isDeleted = false;
     }
 
     // Search by public ID
     if (search) {
-      where.publicId = { contains: search, mode: 'insensitive' };
+      where.publicId = { contains: search, mode: "insensitive" };
     }
 
     // Game filter (for supplier view)
@@ -64,8 +70,10 @@ export async function GET(request: NextRequest) {
     // Diamond range filter
     if (minDiamond || maxDiamond) {
       where.diamond = {};
-      if (minDiamond) where.diamond = { ...where.diamond, gte: parseInt(minDiamond) };
-      if (maxDiamond) where.diamond = { ...where.diamond, lte: parseInt(maxDiamond) };
+      if (minDiamond)
+        where.diamond = { ...where.diamond, gte: parseInt(minDiamond) };
+      if (maxDiamond)
+        where.diamond = { ...where.diamond, lte: parseInt(maxDiamond) };
     }
 
     // Level range filter
@@ -85,23 +93,23 @@ export async function GET(request: NextRequest) {
       where.gender = gender;
     }
 
-    // Character filter - accounts must have ALL selected characters
+    // Character filter - accounts must have ALL selected characters (any quantity)
     if (characters && characters.length > 0) {
-      where.AND = characters.map(charId => ({
+      where.AND = characters.map((charId) => ({
         characters: {
-          some: { characterId: charId }
-        }
+          some: { characterId: charId },
+        },
       }));
     }
 
-    // Weapon filter - accounts must have ALL selected weapons
+    // Weapon filter - accounts must have ALL selected weapons (any quantity)
     if (weapons && weapons.length > 0) {
-      const weaponConditions = weapons.map(weaponId => ({
+      const weaponConditions = weapons.map((weaponId) => ({
         weapons: {
-          some: { weaponId: weaponId }
-        }
+          some: { weaponId: weaponId },
+        },
       }));
-      
+
       if (where.AND) {
         where.AND = [...(where.AND as unknown[]), ...weaponConditions];
       } else {
@@ -114,7 +122,7 @@ export async function GET(request: NextRequest) {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         select: {
           id: true,
           publicId: true,
@@ -122,39 +130,48 @@ export async function GET(request: NextRequest) {
           diamond: true,
           serverId: true,
           server: {
-            select: { id: true, name: true, code: true }
+            select: { id: true, name: true, code: true },
           },
           gender: true,
           basePrice: true,
           status: true,
           createdAt: true,
           game: {
-            select: { id: true, name: true, code: true }
+            select: { id: true, name: true, code: true },
           },
           characters: {
             select: {
+              quantity: true,
               character: {
-                select: { id: true, name: true, rarity: true, element: true }
-              }
-            }
+                select: { id: true, name: true, rarity: true, element: true },
+              },
+            },
           },
           weapons: {
             select: {
+              quantity: true,
               weapon: {
-                select: { id: true, name: true, rarity: true, weaponType: true }
-              }
-            }
+                select: {
+                  id: true,
+                  name: true,
+                  rarity: true,
+                  weaponType: true,
+                },
+              },
+            },
           },
-          supplier: supplierOnly ? {
-            select: { id: true, name: true }
-          } : false,
-        }
+          supplier: supplierOnly
+            ? {
+                select: { id: true, name: true },
+              }
+            : false,
+        },
       }),
-      db.account.count({ where })
+      db.account.count({ where }),
     ]);
 
     // Transform data for response
-    const publicAccounts = accounts.map(account => ({
+    const publicAccounts = accounts.map((account) => ({
       id: account.id,
       publicId: account.publicId,
       game: account.game,
@@ -165,10 +182,16 @@ export async function GET(request: NextRequest) {
       gender: account.gender,
       basePrice: account.basePrice,
       status: account.status,
-      characters: account.characters.map(c => c.character),
-      weapons: account.weapons.map(w => w.weapon),
+      characters: account.characters.map((c) => ({
+        ...c.character,
+        quantity: c.quantity,
+      })),
+      weapons: account.weapons.map((w) => ({
+        ...w.weapon,
+        quantity: w.quantity,
+      })),
       supplier: account.supplier,
-      createdAt: account.createdAt
+      createdAt: account.createdAt,
     }));
 
     return NextResponse.json({
@@ -177,43 +200,44 @@ export async function GET(request: NextRequest) {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
-    console.error('Error fetching accounts:', error);
+    console.error("Error fetching accounts:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch accounts' },
+      { error: "Failed to fetch accounts" },
       { status: 500 }
     );
   }
 }
 
+// POST /api/accounts - Create new account (Supplier only)
 export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
-    
+
     if (!token || token.role !== Role.SUPPLIER) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { 
-      gameId, 
-      level, 
-      diamond, 
-      serverId, 
-      gender, 
-      characterIds, 
-      weaponIds,
-      basePrice, 
-      credentials 
+    const {
+      gameId,
+      level,
+      diamond,
+      serverId,
+      gender,
+      characterSelections, // Array of { characterId, quantity }
+      weaponSelections, // Array of { weaponId, quantity }
+      basePrice,
+      credentials,
     } = body;
 
     // Validate required fields
     if (!gameId || !basePrice || !credentials) {
       return NextResponse.json(
-        { error: 'Game, base price, and credentials are required' },
+        { error: "Game, base price, and credentials are required" },
         { status: 400 }
       );
     }
@@ -225,17 +249,20 @@ export async function POST(request: NextRequest) {
     });
 
     if (!game) {
-      return NextResponse.json({ error: 'Game not found' }, { status: 404 });
+      return NextResponse.json({ error: "Game not found" }, { status: 404 });
     }
 
     // Validate server if provided
     if (serverId) {
       const server = await db.server.findUnique({
         where: { id: serverId },
-        select: { id: true, gameId: true }
+        select: { id: true, gameId: true },
       });
       if (!server || server.gameId !== gameId) {
-        return NextResponse.json({ error: 'Invalid server for this game' }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid server for this game" },
+          { status: 400 }
+        );
       }
     }
 
@@ -245,7 +272,7 @@ export async function POST(request: NextRequest) {
     // Encrypt credentials
     const encryptedLogin = encryptCredentials(credentials);
 
-    // Create account with relations
+    // Create account with relations including quantity
     const account = await db.account.create({
       data: {
         publicId,
@@ -257,16 +284,26 @@ export async function POST(request: NextRequest) {
         gender: gender || null,
         basePrice: parseFloat(basePrice),
         encryptedLogin,
-        characters: characterIds?.length ? {
-          create: characterIds.map((charId: string) => ({
-            characterId: charId,
-          })),
-        } : undefined,
-        weapons: weaponIds?.length ? {
-          create: weaponIds.map((wepId: string) => ({
-            weaponId: wepId,
-          })),
-        } : undefined,
+        characters: characterSelections?.length
+          ? {
+              create: characterSelections.map(
+                (item: { characterId: string; quantity: number }) => ({
+                  characterId: item.characterId,
+                  quantity: item.quantity || 1,
+                })
+              ),
+            }
+          : undefined,
+        weapons: weaponSelections?.length
+          ? {
+              create: weaponSelections.map(
+                (item: { weaponId: string; quantity: number }) => ({
+                  weaponId: item.weaponId,
+                  quantity: item.quantity || 1,
+                })
+              ),
+            }
+          : undefined,
       },
       include: {
         game: true,
@@ -284,11 +321,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ account }, { status: 201 });
+    // Transform response to include quantity
+    const responseAccount = {
+      ...account,
+      characters: account.characters.map((c) => ({
+        ...c.character,
+        quantity: c.quantity,
+      })),
+      weapons: account.weapons.map((w) => ({
+        ...w.weapon,
+        quantity: w.quantity,
+      })),
+    };
+
+    return NextResponse.json({ account: responseAccount }, { status: 201 });
   } catch (error) {
-    console.error('Error creating account:', error);
+    console.error("Error creating account:", error);
     return NextResponse.json(
-      { error: 'Failed to create account' },
+      { error: "Failed to create account" },
       { status: 500 }
     );
   }

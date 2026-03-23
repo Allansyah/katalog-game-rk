@@ -1,30 +1,57 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Search, Loader2, AlertTriangle, Copy, Check, Eye, EyeOff, Crown, Gift, Shield, TrendingDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import {
+  Search,
+  Loader2,
+  AlertTriangle,
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
+  Crown,
+  Gift,
+  Shield,
+  TrendingDown,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { toast } from 'sonner';
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
+// Interface yang diperluas sesuai data dari InventoryPage
 interface AccountInfo {
   id: string;
   publicId: string;
   game: { id: string; name: string; code: string };
   level: number | null;
   diamond: number;
-  server: string | null;
-  characters: { id: string; name: string; rarity?: number }[];
+  serverId: string | null;
+  server: { id: string; name: string; code: string | null } | null;
+  gender: string | null;
+  status: string;
+  characters: {
+    id: string;
+    name: string;
+    rarity: number | null;
+    quantity: number;
+  }[];
+  weapons: {
+    id: string;
+    name: string;
+    rarity: number | null;
+    quantity: number;
+  }[];
 }
 
 interface Pricing {
@@ -48,49 +75,66 @@ interface Credentials {
   email?: string;
 }
 
+interface Transaction {
+  id: string;
+  basePrice: number;
+  platformFee: number;
+  platformFeePercent: number;
+  savings: number;
+  finalPrice: number;
+  balanceAfter: number;
+  isOwner?: boolean;
+}
+
+interface ExtractResponse {
+  account: AccountInfo;
+  pricing: Pricing;
+  credentials?: Credentials;
+  transaction?: Transaction;
+}
+
 export default function ExtractPage() {
-  const [accountId, setAccountId] = useState('');
-  const [searchId, setSearchId] = useState('');
+  const [accountId, setAccountId] = useState("");
+  const [searchId, setSearchId] = useState("");
   const [showCredentials, setShowCredentials] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
-  // Price inquiry query
-  const { data: priceData, isLoading: isLoadingPrice, refetch, error: priceError } = useQuery<{
-    account: AccountInfo;
-    pricing: Pricing;
-  }>({
-    queryKey: ['price-inquiry', searchId],
+  // Query otomatis berjalan saat searchId berubah
+  const {
+    data: priceData,
+    isLoading: isLoadingPrice,
+    error: priceError,
+  } = useQuery<ExtractResponse>({
+    queryKey: ["price-inquiry", searchId],
     queryFn: async () => {
       const res = await fetch(`/api/accounts/${searchId}/extract`);
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to get price');
+        throw new Error(error.error || "Failed to get price");
       }
       return res.json();
     },
-    enabled: false,
+    enabled: !!searchId, // hanya fetch jika ada ID
   });
 
-  // Extraction mutation
   const extractMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/accounts/${searchId}/extract`, {
-        method: 'POST',
+        method: "POST",
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to extract account');
+        throw new Error(error.error || "Failed to extract account");
       }
-      return res.json();
+      return res.json() as Promise<ExtractResponse>;
     },
     onSuccess: (data) => {
       if (data.transaction?.isOwner) {
-        toast.success('Your account retrieved successfully!');
+        toast.success("Your account retrieved successfully!");
       } else {
-        toast.success('Account extracted successfully!');
+        toast.success("Account extracted successfully!");
       }
-      // Show credentials modal
       setShowCredentials(true);
     },
     onError: (error: Error) => {
@@ -100,11 +144,10 @@ export default function ExtractPage() {
 
   const handleSearch = () => {
     if (!accountId.trim()) {
-      toast.error('Please enter an Account ID');
+      toast.error("Please enter an Account ID");
       return;
     }
     setSearchId(accountId.trim());
-    setTimeout(() => refetch(), 0);
   };
 
   const handleExtract = () => {
@@ -126,8 +169,12 @@ export default function ExtractPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Extract Account</h1>
-        <p className="text-zinc-400">Enter an Account ID to check price and purchase</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-white">
+          Extract Account
+        </h1>
+        <p className="text-zinc-400">
+          Enter an Account ID to check price and purchase
+        </p>
       </div>
 
       {/* Search Card */}
@@ -143,7 +190,7 @@ export default function ExtractPage() {
                 placeholder="Enter Account ID (e.g., WW-1704708578-X29F)"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 className="bg-zinc-800 border-zinc-700 pl-10"
               />
             </div>
@@ -155,7 +202,7 @@ export default function ExtractPage() {
               {isLoadingPrice ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                'Check Price'
+                "Check Price"
               )}
             </Button>
           </div>
@@ -163,7 +210,9 @@ export default function ExtractPage() {
           {/* Error */}
           {priceError && (
             <div className="p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400">
-              {priceError instanceof Error ? priceError.message : 'Failed to get price'}
+              {priceError instanceof Error
+                ? priceError.message
+                : "Failed to get price"}
             </div>
           )}
         </CardContent>
@@ -188,34 +237,93 @@ export default function ExtractPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-zinc-400">Account ID</span>
-                <span className="font-mono text-white">{priceData.account.publicId}</span>
+                <span className="font-mono text-white">
+                  {priceData.account.publicId}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-400">Game</span>
-                <Badge className="bg-emerald-600">{priceData.account.game.name}</Badge>
+                <Badge className="bg-emerald-600">
+                  {priceData.account.game.name}
+                </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-400">Level</span>
-                <span className="text-white">{priceData.account.level || '-'}</span>
+                <span className="text-white">
+                  {priceData.account.level || "-"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-400">Diamond</span>
-                <span className="text-emerald-400">{priceData.account.diamond.toLocaleString()}</span>
+                <span className="text-emerald-400">
+                  {priceData.account.diamond.toLocaleString()}
+                </span>
               </div>
+              {/* Server (object) */}
               <div className="flex items-center justify-between">
                 <span className="text-zinc-400">Server</span>
-                <span className="text-white">{priceData.account.server || '-'}</span>
+                <span className="text-white">
+                  {priceData.account.server?.name || "-"}
+                </span>
               </div>
-              
+              {/* Gender */}
+              {priceData.account.gender && (
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Gender</span>
+                  <span className="text-white">{priceData.account.gender}</span>
+                </div>
+              )}
+
               {/* Characters */}
               {priceData.account.characters.length > 0 && (
                 <div className="pt-4 border-t border-zinc-800">
                   <Label className="text-zinc-400">Characters</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {priceData.account.characters.map((char) => (
-                      <Badge key={char.id} variant="outline" className="border-zinc-700">
+                      <Badge
+                        key={char.id}
+                        variant="outline"
+                        className="border-zinc-700"
+                      >
                         {char.name}
-                        {char.rarity && <span className="ml-1 text-yellow-400">★{char.rarity}</span>}
+                        {char.rarity && (
+                          <span className="ml-1 text-yellow-400">
+                            ★{char.rarity}
+                          </span>
+                        )}
+                        {char.quantity > 1 && (
+                          <span className="ml-1 text-xs text-zinc-400">
+                            x{char.quantity}
+                          </span>
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Weapons */}
+              {priceData.account.weapons.length > 0 && (
+                <div className="pt-4 border-t border-zinc-800">
+                  <Label className="text-zinc-400">Weapons</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {priceData.account.weapons.map((weapon) => (
+                      <Badge
+                        key={weapon.id}
+                        variant="outline"
+                        className="border-zinc-700"
+                      >
+                        {weapon.name}
+                        {weapon.rarity && (
+                          <span className="ml-1 text-yellow-400">
+                            ★{weapon.rarity}
+                          </span>
+                        )}
+                        {weapon.quantity > 1 && (
+                          <span className="ml-1 text-xs text-zinc-400">
+                            x{weapon.quantity}
+                          </span>
+                        )}
                       </Badge>
                     ))}
                   </div>
@@ -247,25 +355,29 @@ export default function ExtractPage() {
                       FREE Extraction
                     </p>
                     <p className="text-sm text-zinc-400">
-                      This is your own account. You can retrieve it without any charges.
+                      This is your own account. You can retrieve it without any
+                      charges.
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-400">Base Price</span>
-                    <span className="text-zinc-500 line-through">Rp {priceData.pricing.basePrice.toLocaleString()}</span>
-                  </div>
                   <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
-                    <span className="text-white font-semibold">Final Price</span>
-                    <span className="text-2xl font-bold text-emerald-400">FREE</span>
+                    <span className="text-white font-semibold">
+                      Final Price
+                    </span>
+                    <span className="text-2xl font-bold text-emerald-400">
+                      FREE
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-zinc-400">Your Balance</span>
-                    <span className="text-white">Rp {priceData.pricing.balance.toLocaleString()}</span>
-                    <span className="text-xs text-zinc-500 ml-2">(unchanged)</span>
+                    <span className="text-white">
+                      Rp {priceData.pricing.balance.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-zinc-500 ml-2">
+                      (unchanged)
+                    </span>
                   </div>
 
-                  {/* Extract Button for Owner */}
                   <Button
                     onClick={handleExtract}
                     disabled={extractMutation.isPending}
@@ -286,85 +398,55 @@ export default function ExtractPage() {
                 </>
               ) : (
                 <>
-                  {/* Normal Purchase */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-400">Account Base Price</span>
-                    <span className="text-white">Rp {priceData.pricing.basePrice.toLocaleString()}</span>
-                  </div>
-                  
-                  {/* Platform Fee Breakdown */}
-                  <div className="p-3 bg-zinc-800/50 rounded-lg space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-zinc-400">Platform Fee (Base)</span>
-                      <span className="text-zinc-400">{priceData.pricing.basePlatformFee}%</span>
-                    </div>
-                    
-                    {priceData.pricing.tierDiscountPercent > 0 && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-emerald-400 flex items-center gap-1">
-                          <TrendingDown className="h-3 w-3" />
-                          Tier Discount ({priceData.pricing.tierName})
-                        </span>
-                        <span className="text-emerald-400">-{priceData.pricing.tierDiscountPercent}%</span>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center justify-between text-sm pt-2 border-t border-zinc-700">
-                      <span className="text-zinc-300">Effective Platform Fee</span>
-                      <span className="text-white font-medium">{priceData.pricing.platformFeePercent}%</span>
-                    </div>
-                  </div>
-
-                  {/* Fee Amount */}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-400">Platform Fee Amount</span>
-                    <div className="text-right">
-                      {priceData.pricing.savings > 0 && (
-                        <span className="text-zinc-500 line-through text-xs block">
-                          Rp {priceData.pricing.originalPlatformFee.toLocaleString()}
-                        </span>
-                      )}
-                      <span className="text-white">Rp {priceData.pricing.platformFee.toLocaleString()}</span>
-                    </div>
-                  </div>
-
                   {priceData.pricing.savings > 0 && (
                     <div className="p-3 bg-emerald-900/20 border border-emerald-900/50 rounded-lg flex items-center gap-2">
                       <TrendingDown className="h-4 w-4 text-emerald-400" />
                       <span className="text-emerald-400 text-sm">
-                        You save Rp {priceData.pricing.savings.toLocaleString()} with {priceData.pricing.tierName} tier!
+                        You save Rp {priceData.pricing.savings.toLocaleString()}{" "}
+                        with {priceData.pricing.tierName} tier!
                       </span>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
-                    <span className="text-white font-semibold">Final Price</span>
+                    <span className="text-white font-semibold">
+                      Final Price
+                    </span>
                     <span className="text-2xl font-bold text-emerald-400">
                       Rp {priceData.pricing.finalPrice.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-zinc-400">Your Balance</span>
-                    <span className="text-white">Rp {priceData.pricing.balance.toLocaleString()}</span>
+                    <span className="text-white">
+                      Rp {priceData.pricing.balance.toLocaleString()}
+                    </span>
                   </div>
 
-                  {/* Insufficient Balance Warning */}
                   {!priceData.pricing.sufficient && (
                     <div className="p-4 bg-yellow-900/20 border border-yellow-900/50 rounded-lg flex gap-3">
                       <AlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0" />
                       <div>
-                        <p className="text-yellow-400 font-medium">Insufficient Balance</p>
+                        <p className="text-yellow-400 font-medium">
+                          Insufficient Balance
+                        </p>
                         <p className="text-yellow-400/80 text-sm">
-                          You need Rp {(priceData.pricing.finalPrice - priceData.pricing.balance).toLocaleString()} more
+                          You need Rp{" "}
+                          {(
+                            priceData.pricing.finalPrice -
+                            priceData.pricing.balance
+                          ).toLocaleString()}{" "}
+                          more
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {/* Extract Button */}
                   <Button
                     onClick={handleExtract}
-                    disabled={!priceData.pricing.sufficient || extractMutation.isPending}
+                    disabled={
+                      !priceData.pricing.sufficient || extractMutation.isPending
+                    }
                     className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
                   >
                     {extractMutation.isPending ? (
@@ -373,7 +455,7 @@ export default function ExtractPage() {
                         Processing...
                       </>
                     ) : (
-                      'Extract Account'
+                      "Extract Account"
                     )}
                   </Button>
                 </>
@@ -391,20 +473,22 @@ export default function ExtractPage() {
               <AlertTriangle className="h-5 w-5 text-yellow-400" />
               Account Credentials
             </DialogTitle>
-            <DialogDescription className={isOwner ? "text-emerald-400" : "text-cyan-400"}>
-              {isOwner 
+            <DialogDescription
+              className={isOwner ? "text-emerald-400" : "text-cyan-400"}
+            >
+              {isOwner
                 ? "✓ Your account credentials retrieved successfully!"
-                : "✓ Credentials saved! View them anytime in Extract History."
-              }
+                : "✓ Credentials saved! View them anytime in Extract History."}
             </DialogDescription>
           </DialogHeader>
 
           {credentials && (
             <div className="space-y-4">
-              {/* Account Info */}
               <div className="p-3 bg-zinc-800 rounded-lg">
                 <p className="text-xs text-zinc-400">Account ID</p>
-                <p className="font-mono text-white">{extractMutation.data?.account?.publicId}</p>
+                <p className="font-mono text-white">
+                  {extractMutation.data?.account?.publicId}
+                </p>
                 {isOwner && (
                   <Badge className="bg-amber-600 mt-2">
                     <Crown className="h-3 w-3 mr-1" />
@@ -413,7 +497,6 @@ export default function ExtractPage() {
                 )}
               </div>
 
-              {/* Credentials */}
               <div className="space-y-3">
                 <div className="p-3 bg-zinc-800 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -421,16 +504,20 @@ export default function ExtractPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => copyToClipboard(credentials.username, 'Username')}
+                      onClick={() =>
+                        copyToClipboard(credentials.username, "Username")
+                      }
                     >
-                      {copied === 'Username' ? (
+                      {copied === "Username" ? (
                         <Check className="h-4 w-4 text-emerald-400" />
                       ) : (
                         <Copy className="h-4 w-4" />
                       )}
                     </Button>
                   </div>
-                  <p className="font-mono text-white break-all">{credentials.username}</p>
+                  <p className="font-mono text-white break-all">
+                    {credentials.username}
+                  </p>
                 </div>
 
                 <div className="p-3 bg-zinc-800 rounded-lg">
@@ -451,9 +538,11 @@ export default function ExtractPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => copyToClipboard(credentials.password, 'Password')}
+                        onClick={() =>
+                          copyToClipboard(credentials.password, "Password")
+                        }
                       >
-                        {copied === 'Password' ? (
+                        {copied === "Password" ? (
                           <Check className="h-4 w-4 text-emerald-400" />
                         ) : (
                           <Copy className="h-4 w-4" />
@@ -462,7 +551,7 @@ export default function ExtractPage() {
                     </div>
                   </div>
                   <p className="font-mono text-white break-all">
-                    {showPassword ? credentials.password : '••••••••••••'}
+                    {showPassword ? credentials.password : "••••••••••••"}
                   </p>
                 </div>
 
@@ -473,55 +562,57 @@ export default function ExtractPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => copyToClipboard(credentials.email!, 'Email')}
+                        onClick={() =>
+                          copyToClipboard(credentials.email!, "Email")
+                        }
                       >
-                        {copied === 'Email' ? (
+                        {copied === "Email" ? (
                           <Check className="h-4 w-4 text-emerald-400" />
                         ) : (
                           <Copy className="h-4 w-4" />
                         )}
                       </Button>
                     </div>
-                    <p className="font-mono text-white break-all">{credentials.email}</p>
+                    <p className="font-mono text-white break-all">
+                      {credentials.email}
+                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Transaction Summary */}
               {transaction && (
                 <div className="pt-4 border-t border-zinc-800 space-y-1">
                   {isOwner ? (
                     <>
                       <p className="text-sm text-zinc-400">
-                        Status: <span className="text-emerald-400">Retrieved (Free)</span>
+                        Status:{" "}
+                        <span className="text-emerald-400">
+                          Retrieved (Free)
+                        </span>
                       </p>
                       <p className="text-sm text-zinc-400">
-                        Balance: <span className="text-white">Rp {transaction.balanceAfter.toLocaleString()}</span>
-                        <span className="text-xs text-zinc-500 ml-1">(unchanged)</span>
+                        Balance:{" "}
+                        <span className="text-white">
+                          Rp {transaction.balanceAfter.toLocaleString()}
+                        </span>
+                        <span className="text-xs text-zinc-500 ml-1">
+                          (unchanged)
+                        </span>
                       </p>
                     </>
                   ) : (
                     <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-zinc-400">Base Price:</span>
-                        <span className="text-white">Rp {transaction.basePrice.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-zinc-400">Platform Fee ({transaction.platformFeePercent}%):</span>
-                        <span className="text-white">Rp {transaction.platformFee.toLocaleString()}</span>
-                      </div>
-                      {transaction.savings > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-emerald-400">Tier Savings:</span>
-                          <span className="text-emerald-400">-Rp {transaction.savings.toLocaleString()}</span>
-                        </div>
-                      )}
                       <div className="flex justify-between text-sm pt-2 border-t border-zinc-700">
                         <span className="text-zinc-300">Total Paid:</span>
-                        <span className="text-white font-medium">Rp {transaction.finalPrice.toLocaleString()}</span>
+                        <span className="text-white font-medium">
+                          Rp {transaction.finalPrice.toLocaleString()}
+                        </span>
                       </div>
                       <p className="text-sm text-zinc-400">
-                        Balance After: <span className="text-emerald-400">Rp {transaction.balanceAfter.toLocaleString()}</span>
+                        Balance After:{" "}
+                        <span className="text-emerald-400">
+                          Rp {transaction.balanceAfter.toLocaleString()}
+                        </span>
                       </p>
                     </>
                   )}
@@ -535,7 +626,7 @@ export default function ExtractPage() {
                 }}
                 className="w-full bg-emerald-600 hover:bg-emerald-700"
               >
-                {isOwner ? 'Close' : "I've Saved My Credentials"}
+                {isOwner ? "Close" : "I've Saved My Credentials"}
               </Button>
             </div>
           )}

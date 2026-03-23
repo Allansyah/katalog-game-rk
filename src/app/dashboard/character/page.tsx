@@ -64,20 +64,23 @@ export default function CharacterManagementPage() {
   });
 
   // Fetch games for dropdown
-  const { data: gamesData } = useQuery<{ games: Game[] }>({
+  const { data: gamesData, isLoading: gamesLoading } = useQuery<{ games: Game[] }>({
     queryKey: ['games'],
     queryFn: () => fetch('/api/games').then((res) => res.json()),
   });
 
   // Fetch characters
-  const { data: characters, isLoading } = useQuery({
+  const { data: characters, isLoading, error } = useQuery({
     queryKey: ['admin-characters', search, gameFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (gameFilter !== 'all') params.set('gameId', gameFilter);
       const res = await fetch(`/api/characters?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch characters');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to fetch characters');
+      }
       return res.json();
     },
   });
@@ -164,6 +167,14 @@ export default function CharacterManagementPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.gameId) {
+      toast.error('Please select a game');
+      return;
+    }
+    if (!formData.name.trim()) {
+      toast.error('Character name is required');
+      return;
+    }
     saveMutation.mutate(formData);
   };
 
@@ -171,8 +182,18 @@ export default function CharacterManagementPage() {
     if (rarity === 5) return 'text-yellow-400';
     if (rarity === 4) return 'text-purple-400';
     if (rarity === 3) return 'text-blue-400';
+    if (rarity === 2) return 'text-green-400';
+    if (rarity === 1) return 'text-zinc-400';
     return 'text-zinc-400';
   };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-red-500">Error loading characters: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -367,6 +388,8 @@ export default function CharacterManagementPage() {
                     <SelectItem value="5">5 Star</SelectItem>
                     <SelectItem value="4">4 Star</SelectItem>
                     <SelectItem value="3">3 Star</SelectItem>
+                    <SelectItem value="2">2 Star</SelectItem>
+                    <SelectItem value="1">1 Star</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

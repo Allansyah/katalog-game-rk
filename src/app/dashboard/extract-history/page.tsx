@@ -401,15 +401,7 @@ export default function ExtractHistoryPage() {
               {/* Transaction Summary */}
               {selectedTransaction && (
                 <div className="pt-4 border-t border-zinc-800">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">Base Price:</span>
-                    <span className="text-white">Rp {selectedTransaction.basePrice.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">Platform Fee:</span>
-                    <span className="text-white">Rp {selectedTransaction.platformFee.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm pt-2 border-t border-zinc-700">
+                  <div className="flex justify-between text-sm pt-2 border-zinc-700">
                     <span className="text-zinc-300">Total Paid:</span>
                     <span className="text-white font-medium">Rp {selectedTransaction.finalPrice.toLocaleString()}</span>
                   </div>
