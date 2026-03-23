@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -11,6 +11,8 @@ import {
   Star,
   Filter,
   Sword,
+  Upload,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,14 +86,19 @@ export default function WeaponManagementPage() {
   const [gameFilter, setGameFilter] = useState<string>("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWeapon, setEditingWeapon] = useState<Weapon | null>(null);
+
   const [formData, setFormData] = useState({
     gameId: "",
     name: "",
-    imageUrl: "",
     rarity: "",
     weaponType: "",
     element: "",
   });
+
+  // State untuk Image Upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isImageRemoved, setIsImageRemoved] = useState(false);
 
   // Fetch games for dropdown
   const { data: gamesData } = useQuery<{ games: Game[] }>({
@@ -121,13 +128,33 @@ export default function WeaponManagementPage() {
 
   // Create/Update mutation
   const saveMutation = useMutation({
-    mutationFn: async (data: typeof formData & { id?: string }) => {
+    mutationFn: async () => {
+      const payload = new FormData();
+      payload.append("gameId", formData.gameId);
+      payload.append("name", formData.name);
+      payload.append("rarity", formData.rarity);
+      payload.append("weaponType", formData.weaponType);
+      payload.append("element", formData.element);
+
+      if (selectedFile) {
+        payload.append("image", selectedFile);
+      }
+      if (isImageRemoved) {
+        payload.append("removeImage", "true");
+      }
+
       const isEdit = !!editingWeapon;
-      const res = await fetch("/api/weapons", {
+      const url = "/api/weapons";
+
+      if (isEdit) {
+        payload.append("id", editingWeapon.id);
+      }
+
+      const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(isEdit ? { ...data, id: editingWeapon.id } : data),
+        body: payload,
       });
+
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || "Failed to save weapon");
@@ -138,7 +165,7 @@ export default function WeaponManagementPage() {
       toast.success(
         editingWeapon
           ? "Weapon updated successfully"
-          : "Weapon created successfully"
+          : "Weapon created successfully",
       );
       queryClient.invalidateQueries({ queryKey: ["admin-weapons"] });
       queryClient.invalidateQueries({ queryKey: ["games"] });
@@ -168,27 +195,43 @@ export default function WeaponManagementPage() {
     },
   });
 
+  // Cleanup preview URL
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   const openModal = (weapon?: Weapon) => {
     if (weapon) {
       setEditingWeapon(weapon);
       setFormData({
         gameId: weapon.gameId,
         name: weapon.name,
-        imageUrl: weapon.imageUrl || "",
         rarity: weapon.rarity?.toString() || "",
         weaponType: weapon.weaponType || "",
         element: weapon.element || "",
       });
+      if (weapon.imageUrl) {
+        setPreviewUrl(weapon.imageUrl);
+        setIsImageRemoved(false);
+      } else {
+        setPreviewUrl(null);
+      }
     } else {
       setEditingWeapon(null);
       setFormData({
         gameId: gameFilter !== "all" ? gameFilter : "",
         name: "",
-        imageUrl: "",
         rarity: "",
         weaponType: "",
         element: "",
       });
+      setPreviewUrl(null);
+      setSelectedFile(null);
+      setIsImageRemoved(false);
     }
     setIsModalOpen(true);
   };
@@ -199,11 +242,33 @@ export default function WeaponManagementPage() {
     setFormData({
       gameId: "",
       name: "",
-      imageUrl: "",
       rarity: "",
       weaponType: "",
       element: "",
     });
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setIsImageRemoved(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      setIsImageRemoved(false);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setIsImageRemoved(true);
+    const fileInput = document.getElementById(
+      "image-upload",
+    ) as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -216,7 +281,7 @@ export default function WeaponManagementPage() {
       toast.error("Weapon name is required");
       return;
     }
-    saveMutation.mutate(formData);
+    saveMutation.mutate();
   };
 
   const getRarityColor = (rarity: number | null) => {
@@ -316,8 +381,16 @@ export default function WeaponManagementPage() {
                       >
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 to-red-600 flex items-center justify-center text-white">
-                              <Sword className="h-5 w-5" />
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-600 to-red-600 flex items-center justify-center text-white overflow-hidden shrink-0">
+                              {weapon.imageUrl ? (
+                                <img
+                                  src={weapon.imageUrl}
+                                  alt={weapon.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <Sword className="h-5 w-5" />
+                              )}
                             </div>
                             <span className="text-white font-medium">
                               {weapon.name}
@@ -333,7 +406,7 @@ export default function WeaponManagementPage() {
                           {weapon.rarity ? (
                             <div
                               className={`flex items-center gap-1 ${getRarityColor(
-                                weapon.rarity
+                                weapon.rarity,
                               )}`}
                             >
                               <Star className="h-4 w-4 fill-current" />
@@ -374,7 +447,7 @@ export default function WeaponManagementPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    )
+                    ),
                   )}
                   {weapons?.weapons?.length === 0 && (
                     <TableRow>
@@ -393,7 +466,7 @@ export default function WeaponManagementPage() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Modal */}
+      {/* Modal */}
       <Dialog open={isModalOpen} onOpenChange={closeModal}>
         <DialogContent className="bg-zinc-900 border-zinc-800">
           <DialogHeader>
@@ -499,16 +572,47 @@ export default function WeaponManagementPage() {
               </div>
             </div>
 
+            {/* Image Upload Section */}
             <div className="space-y-2">
-              <Label className="text-zinc-400">Image URL (optional)</Label>
-              <Input
-                value={formData.imageUrl}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, imageUrl: e.target.value }))
-                }
-                placeholder="https://..."
-                className="bg-zinc-800 border-zinc-700"
-              />
+              <Label className="text-zinc-400">Weapon Image</Label>
+              {previewUrl ? (
+                <div className="relative w-full h-40 rounded-lg overflow-hidden border border-zinc-700 bg-zinc-800">
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="w-full h-full object-contain"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-6 w-6"
+                    onClick={removeImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="image-upload"
+                  className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-lg cursor-pointer hover:border-zinc-500 transition-colors bg-zinc-800/50"
+                >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 mb-3 text-zinc-500" />
+                    <p className="mb-2 text-sm text-zinc-400">
+                      <span className="font-semibold">Click to upload</span>
+                    </p>
+                    <p className="text-xs text-zinc-500">PNG, JPG or WEBP</p>
+                  </div>
+                  <input
+                    id="image-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              )}
             </div>
 
             <div className="flex gap-2 pt-4">

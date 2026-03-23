@@ -1,15 +1,55 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { getToken } from 'next-auth/jwt';
-import { Role, ActivityAction } from '@prisma/client';
-import { logActivityWithContext } from '@/lib/activity';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { getToken } from "next-auth/jwt";
+import { Role, ActivityAction } from "@prisma/client";
+import { logActivityWithContext } from "@/lib/activity";
+import { writeFile, mkdir, unlink } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
+
+// Helper untuk menyimpan file
+async function saveFile(file: File): Promise<string> {
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  const uploadDir = path.join(
+    process.cwd(),
+    "public",
+    "uploads",
+    "weapons-master",
+  );
+  if (!existsSync(uploadDir)) {
+    await mkdir(uploadDir, { recursive: true });
+  }
+
+  const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+  const fileExtension = file.name.split(".").pop();
+  const fileName = `weapon-${uniqueSuffix}.${fileExtension}`;
+  const filePath = path.join(uploadDir, fileName);
+
+  await writeFile(filePath, buffer);
+  return `/uploads/weapons-master/${fileName}`;
+}
+
+// Helper untuk menghapus file
+async function deleteFile(publicPath: string | null) {
+  if (!publicPath) return;
+  try {
+    const filePath = path.join(process.cwd(), "public", publicPath);
+    if (existsSync(filePath)) {
+      await unlink(filePath);
+    }
+  } catch (error) {
+    console.error("Failed to delete weapon file:", error);
+  }
+}
 
 // GET - List all weapons
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search');
-    const gameId = searchParams.get('gameId');
+    const search = searchParams.get("search");
+    const gameId = searchParams.get("gameId");
 
     const where: Record<string, unknown> = {};
 
@@ -17,125 +57,133 @@ export async function GET(request: NextRequest) {
       where.name = { contains: search };
     }
 
-    if (gameId && gameId !== 'all') {
+    if (gameId && gameId !== "all") {
       where.gameId = gameId;
     }
 
     const weapons = await db.weapon.findMany({
       where,
       include: {
-        game: {
-          select: { id: true, name: true, code: true },
-        },
-        _count: {
-          select: { accounts: true },
-        },
+        game: { select: { id: true, name: true, code: true } },
+        _count: { select: { accounts: true } },
       },
-      orderBy: [{ game: { name: 'asc' } }, { name: 'asc' }],
+      orderBy: [{ game: { name: "asc" } }, { name: "asc" }],
     });
 
     return NextResponse.json({ weapons });
   } catch (error) {
-    console.error('Error fetching weapons:', error);
+    console.error("Error fetching weapons:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch weapons' },
-      { status: 500 }
+      { error: "Failed to fetch weapons" },
+      { status: 500 },
     );
   }
 }
 
-// POST - Create new weapon (Super Admin only)
+// POST - Create new weapon
 export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
-    
     if (!token || token.role !== Role.SUPER_ADMIN) {
-      return NextResponse.json({ error: 'Unauthorized - Super Admin only' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { gameId, name, imageUrl, rarity, weaponType, element } = body;
-
-    if (!gameId || !name) {
       return NextResponse.json(
-        { error: 'Game and weapon name are required' },
-        { status: 400 }
+        { error: "Unauthorized - Super Admin only" },
+        { status: 401 },
       );
     }
 
-    // Check if weapon already exists for this game
+    const formData = await request.formData();
+    const gameId = formData.get("gameId") as string;
+    const name = formData.get("name") as string;
+    const rarity = formData.get("rarity") as string;
+    const weaponType = formData.get("weaponType") as string;
+    const element = formData.get("element") as string;
+    const imageFile = formData.get("image") as File | null;
+
+    if (!gameId || !name) {
+      return NextResponse.json(
+        { error: "Game and weapon name are required" },
+        { status: 400 },
+      );
+    }
+
     const existing = await db.weapon.findUnique({
-      where: {
-        gameId_name: {
-          gameId,
-          name,
-        },
-      },
+      where: { gameId_name: { gameId, name } },
     });
 
     if (existing) {
       return NextResponse.json(
-        { error: 'Weapon with this name already exists for this game' },
-        { status: 400 }
+        { error: "Weapon with this name already exists for this game" },
+        { status: 400 },
       );
+    }
+
+    let imageUrl: string | null = null;
+    if (imageFile && imageFile.size > 0) {
+      imageUrl = await saveFile(imageFile);
     }
 
     const weapon = await db.weapon.create({
       data: {
         gameId,
         name,
-        imageUrl: imageUrl || null,
+        imageUrl,
         rarity: rarity ? parseInt(rarity) : null,
         weaponType: weaponType || null,
         element: element || null,
       },
-      include: {
-        game: {
-          select: { id: true, name: true, code: true },
-        },
-      },
+      include: { game: { select: { id: true, name: true, code: true } } },
     });
 
-    // Log activity
-    await logActivityWithContext({
-      action: ActivityAction.WEAPON_CREATE,
-      userId: token.id as string,
-      entityType: 'Weapon',
-      entityId: weapon.id,
-      entityName: weapon.name,
-      details: {
-        gameName: weapon.game.name,
-        rarity: weapon.rarity,
-        weaponType: weapon.weaponType,
+    await logActivityWithContext(
+      {
+        action: ActivityAction.WEAPON_CREATE,
+        userId: token.id as string,
+        entityType: "Weapon",
+        entityId: weapon.id,
+        entityName: weapon.name,
+        details: {
+          gameName: weapon.game.name,
+          rarity: weapon.rarity,
+          weaponType: weapon.weaponType,
+        },
       },
-    }, request);
+      request,
+    );
 
     return NextResponse.json({ weapon }, { status: 201 });
   } catch (error) {
-    console.error('Error creating weapon:', error);
+    console.error("Error creating weapon:", error);
     return NextResponse.json(
-      { error: 'Failed to create weapon' },
-      { status: 500 }
+      { error: "Failed to create weapon" },
+      { status: 500 },
     );
   }
 }
 
-// PUT - Update weapon (Super Admin only)
+// PUT - Update weapon
 export async function PUT(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
-    
     if (!token || token.role !== Role.SUPER_ADMIN) {
-      return NextResponse.json({ error: 'Unauthorized - Super Admin only' }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized - Super Admin only" },
+        { status: 401 },
+      );
     }
 
-    const body = await request.json();
-    const { id, name, imageUrl, rarity, weaponType, element } = body;
+    const formData = await request.formData();
+    const id = formData.get("id") as string;
+    const name = formData.get("name") as string;
+    const rarity = formData.get("rarity") as string;
+    const weaponType = formData.get("weaponType") as string;
+    const element = formData.get("element") as string;
+    const imageFile = formData.get("image") as File | null;
+    const removeImage = formData.get("removeImage") === "true";
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Weapon ID is required' },
-        { status: 400 }
+        { error: "Weapon ID is required" },
+        { status: 400 },
       );
     }
 
@@ -145,66 +193,69 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: 'Weapon not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Weapon not found" }, { status: 404 });
     }
 
-    // Check name uniqueness if changing name
     if (name && name !== existing.name) {
       const duplicate = await db.weapon.findUnique({
-        where: {
-          gameId_name: {
-            gameId: existing.gameId,
-            name,
-          },
-        },
+        where: { gameId_name: { gameId: existing.gameId, name } },
       });
-
       if (duplicate) {
         return NextResponse.json(
-          { error: 'Weapon with this name already exists for this game' },
-          { status: 400 }
+          { error: "Weapon with this name already exists for this game" },
+          { status: 400 },
         );
       }
+    }
+
+    let imageUrl = existing.imageUrl;
+
+    if (removeImage) {
+      await deleteFile(existing.imageUrl);
+      imageUrl = null;
+    } else if (imageFile && imageFile.size > 0) {
+      await deleteFile(existing.imageUrl);
+      imageUrl = await saveFile(imageFile);
     }
 
     const weapon = await db.weapon.update({
       where: { id },
       data: {
         name: name || existing.name,
-        imageUrl: imageUrl !== undefined ? imageUrl : existing.imageUrl,
-        rarity: rarity !== undefined ? (rarity ? parseInt(rarity) : null) : existing.rarity,
+        imageUrl,
+        rarity:
+          rarity !== undefined
+            ? rarity
+              ? parseInt(rarity)
+              : null
+            : existing.rarity,
         weaponType: weaponType !== undefined ? weaponType : existing.weaponType,
         element: element !== undefined ? element : existing.element,
       },
-      include: {
-        game: {
-          select: { id: true, name: true, code: true },
-        },
-      },
+      include: { game: { select: { id: true, name: true, code: true } } },
     });
 
-    // Log activity
-    await logActivityWithContext({
-      action: ActivityAction.WEAPON_UPDATE,
-      userId: token.id as string,
-      entityType: 'Weapon',
-      entityId: weapon.id,
-      entityName: weapon.name,
-      details: {
-        gameName: weapon.game.name,
-        changes: { name, rarity, weaponType, element },
+    await logActivityWithContext(
+      {
+        action: ActivityAction.WEAPON_UPDATE,
+        userId: token.id as string,
+        entityType: "Weapon",
+        entityId: weapon.id,
+        entityName: weapon.name,
+        details: {
+          gameName: weapon.game.name,
+          changes: { name, rarity, weaponType, element },
+        },
       },
-    }, request);
+      request,
+    );
 
     return NextResponse.json({ weapon });
   } catch (error) {
-    console.error('Error updating weapon:', error);
+    console.error("Error updating weapon:", error);
     return NextResponse.json(
-      { error: 'Failed to update weapon' },
-      { status: 500 }
+      { error: "Failed to update weapon" },
+      { status: 500 },
     );
   }
 }
