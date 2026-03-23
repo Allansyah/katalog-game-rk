@@ -2,8 +2,48 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getToken } from "next-auth/jwt";
 import { Role } from "@prisma/client";
+import { writeFile, mkdir, unlink } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
 
-// GET /api/characters?search=&gameId=
+// Helper untuk menyimpan file
+async function saveFile(file: File): Promise<string> {
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  const uploadDir = path.join(
+    process.cwd(),
+    "public",
+    "uploads",
+    "characters-master",
+  );
+  if (!existsSync(uploadDir)) {
+    await mkdir(uploadDir, { recursive: true });
+  }
+
+  const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+  const fileExtension = file.name.split(".").pop();
+  const fileName = `char-${uniqueSuffix}.${fileExtension}`;
+  const filePath = path.join(uploadDir, fileName);
+
+  await writeFile(filePath, buffer);
+  return `/uploads/characters-master/${fileName}`;
+}
+
+// Helper untuk menghapus file
+async function deleteFile(publicPath: string | null) {
+  if (!publicPath) return;
+  try {
+    const filePath = path.join(process.cwd(), "public", publicPath);
+    if (existsSync(filePath)) {
+      await unlink(filePath);
+    }
+  } catch (error) {
+    console.error("Failed to delete character file:", error);
+  }
+}
+
+// GET
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -34,12 +74,12 @@ export async function GET(request: Request) {
     console.error("Error fetching characters:", error);
     return NextResponse.json(
       { error: "Failed to fetch characters" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// POST /api/characters (create)
+// POST - Create
 export async function POST(request: Request) {
   try {
     const token = await getToken({ req: request });
@@ -47,17 +87,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { gameId, name, imageUrl, rarity, element } = body;
+    const formData = await request.formData();
+    const gameId = formData.get("gameId") as string;
+    const name = formData.get("name") as string;
+    const rarity = formData.get("rarity") as string;
+    const element = formData.get("element") as string;
+    const imageFile = formData.get("image") as File | null;
 
     if (!gameId || !name) {
       return NextResponse.json(
         { error: "Game ID and name are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Cek duplikat (gameId + name unique)
     const existing = await db.character.findUnique({
       where: { gameId_name: { gameId, name } },
     });
@@ -65,15 +108,20 @@ export async function POST(request: Request) {
     if (existing) {
       return NextResponse.json(
         { error: "Character with this name already exists in the game" },
-        { status: 409 }
+        { status: 409 },
       );
+    }
+
+    let imageUrl: string | null = null;
+    if (imageFile && imageFile.size > 0) {
+      imageUrl = await saveFile(imageFile);
     }
 
     const character = await db.character.create({
       data: {
         gameId,
         name,
-        imageUrl: imageUrl || null,
+        imageUrl,
         rarity: rarity ? parseInt(rarity) : null,
         element: element || null,
       },
@@ -87,12 +135,12 @@ export async function POST(request: Request) {
     console.error("Error creating character:", error);
     return NextResponse.json(
       { error: "Failed to create character" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// PUT /api/characters (update)
+// PUT - Update
 export async function PUT(request: Request) {
   try {
     const token = await getToken({ req: request });
@@ -100,30 +148,33 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { id, name, imageUrl, rarity, element } = body;
+    const formData = await request.formData();
+    const id = formData.get("id") as string;
+    const name = formData.get("name") as string;
+    const rarity = formData.get("rarity") as string;
+    const element = formData.get("element") as string;
+    const imageFile = formData.get("image") as File | null;
+    const removeImage = formData.get("removeImage") === "true";
 
     if (!id || !name) {
       return NextResponse.json(
         { error: "ID and name are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Cek apakah karakter ada
     const existingCharacter = await db.character.findUnique({
       where: { id },
-      include: { game: true },
     });
 
     if (!existingCharacter) {
       return NextResponse.json(
         { error: "Character not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Jika nama berubah, cek duplikat di game yang sama
+    // Cek duplikat nama
     if (name !== existingCharacter.name) {
       const duplicate = await db.character.findUnique({
         where: { gameId_name: { gameId: existingCharacter.gameId, name } },
@@ -131,17 +182,26 @@ export async function PUT(request: Request) {
       if (duplicate) {
         return NextResponse.json(
           { error: "Character with this name already exists in the game" },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
 
-    // Update karakter (gameId tidak boleh diubah)
+    let imageUrl = existingCharacter.imageUrl;
+
+    if (removeImage) {
+      await deleteFile(existingCharacter.imageUrl);
+      imageUrl = null;
+    } else if (imageFile && imageFile.size > 0) {
+      await deleteFile(existingCharacter.imageUrl);
+      imageUrl = await saveFile(imageFile);
+    }
+
     const updated = await db.character.update({
       where: { id },
       data: {
         name,
-        imageUrl: imageUrl || null,
+        imageUrl,
         rarity: rarity ? parseInt(rarity) : null,
         element: element || null,
       },
@@ -155,7 +215,7 @@ export async function PUT(request: Request) {
     console.error("Error updating character:", error);
     return NextResponse.json(
       { error: "Failed to update character" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
