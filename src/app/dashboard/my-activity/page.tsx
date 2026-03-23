@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   Clock,
@@ -10,18 +10,18 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ActivityLog {
   id: string;
@@ -51,21 +51,51 @@ interface ActivityLogsResponse {
 
 // Action labels and colors
 const actionConfig: Record<string, { label: string; color: string }> = {
-  LOGIN: { label: 'Login', color: 'bg-green-500' },
-  LOGOUT: { label: 'Logout', color: 'bg-gray-500' },
-  LOGIN_FAILED: { label: 'Login Failed', color: 'bg-red-500' },
-  ACCOUNT_CREATE: { label: 'Create Account', color: 'bg-blue-500' },
-  ACCOUNT_UPDATE: { label: 'Update Account', color: 'bg-blue-500' },
-  ACCOUNT_EXTRACT: { label: 'Extract Account', color: 'bg-purple-500' },
-  TOPUP_REQUEST: { label: 'Topup Request', color: 'bg-yellow-500' },
-  WITHDRAW_REQUEST: { label: 'Withdraw Request', color: 'bg-yellow-500' },
-  TRANSFER_BALANCE: { label: 'Transfer Balance', color: 'bg-purple-500' },
-  PASSWORD_CHANGE: { label: 'Change Password', color: 'bg-orange-500' },
-  PROFILE_UPDATE: { label: 'Update Profile', color: 'bg-blue-500' },
+  LOGIN: { label: "Login", color: "bg-green-500" },
+  LOGOUT: { label: "Logout", color: "bg-gray-500" },
+  LOGIN_FAILED: { label: "Login Failed", color: "bg-red-500" },
+  ACCOUNT_CREATE: { label: "Create Account", color: "bg-blue-500" },
+  ACCOUNT_UPDATE: { label: "Update Account", color: "bg-blue-500" },
+  ACCOUNT_EXTRACT: { label: "Extract Account", color: "bg-purple-500" },
+  TOPUP_REQUEST: { label: "Topup Request", color: "bg-yellow-500" },
+  WITHDRAW_REQUEST: { label: "Withdraw Request", color: "bg-yellow-500" },
+  TRANSFER_BALANCE: { label: "Transfer Balance", color: "bg-purple-500" },
+  PASSWORD_CHANGE: { label: "Change Password", color: "bg-orange-500" },
+  PROFILE_UPDATE: { label: "Update Profile", color: "bg-blue-500" },
+};
+
+// Mapping aksi yang diizinkan per Role (berdasarkan Sidebar)
+const ROLE_ALLOWED_ACTIONS: Record<string, string[]> = {
+  SUPER_ADMIN: Object.keys(actionConfig), // Super Admin lihat semua
+  SUPPLIER: [
+    "LOGIN",
+    "LOGOUT",
+    "LOGIN_FAILED",
+    "PASSWORD_CHANGE",
+    "PROFILE_UPDATE",
+    "TOPUP_REQUEST",
+    "WITHDRAW_REQUEST",
+    "ACCOUNT_CREATE", // Akses My Accounts
+    "ACCOUNT_UPDATE", // Akses My Accounts
+    "ACCOUNT_EXTRACT", // Akses Extract Account
+  ],
+  RESELLER: [
+    "LOGIN",
+    "LOGOUT",
+    "LOGIN_FAILED",
+    "PASSWORD_CHANGE",
+    "PROFILE_UPDATE",
+    "TOPUP_REQUEST",
+    "WITHDRAW_REQUEST",
+    "ACCOUNT_EXTRACT", // Akses Extract Account
+  ],
 };
 
 function ActionBadge({ action }: { action: string }) {
-  const config = actionConfig[action] || { label: action, color: 'bg-gray-500' };
+  const config = actionConfig[action] || {
+    label: action,
+    color: "bg-gray-500",
+  };
   return (
     <Badge className={`${config.color} text-white text-xs`}>
       {config.label}
@@ -75,12 +105,12 @@ function ActionBadge({ action }: { action: string }) {
 
 function formatDateTime(dateString: string) {
   const date = new Date(dateString);
-  return date.toLocaleString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return date.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -92,7 +122,7 @@ function formatTimeAgo(dateString: string) {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return 'Just now';
+  if (diffMins < 1) return "Just now";
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
@@ -113,14 +143,14 @@ export default function MyActivityPage() {
   const [filters, setFilters] = useState({
     actions: [] as string[],
   });
-  
+
   // Filter state
-  const [selectedAction, setSelectedAction] = useState<string>('all');
+  const [selectedAction, setSelectedAction] = useState<string>("all");
 
   // Check authorization
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
+    if (status === "unauthenticated") {
+      router.push("/login");
     }
   }, [status, router]);
 
@@ -129,19 +159,23 @@ export default function MyActivityPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set('page', pagination.page.toString());
-      params.set('limit', pagination.limit.toString());
-      if (selectedAction !== 'all') params.set('action', selectedAction);
+      params.set("page", pagination.page.toString());
+      params.set("limit", pagination.limit.toString());
+      if (selectedAction !== "all") params.set("action", selectedAction);
 
       const response = await fetch(`/api/my-activity?${params.toString()}`);
       if (response.ok) {
         const data: ActivityLogsResponse = await response.json();
         setLogs(data.logs);
-        setPagination(prev => ({ ...prev, total: data.pagination.total, totalPages: data.pagination.totalPages }));
+        setPagination((prev) => ({
+          ...prev,
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages,
+        }));
         setFilters(data.filters);
       }
     } catch (error) {
-      console.error('Failed to fetch activity logs:', error);
+      console.error("Failed to fetch activity logs:", error);
     } finally {
       setLoading(false);
     }
@@ -153,7 +187,19 @@ export default function MyActivityPage() {
     }
   }, [session, pagination.page, selectedAction]);
 
-  if (status === 'loading' || !session) {
+  // Filter daftar aksi berdasarkan role pengguna
+  const allowedActions = useMemo(() => {
+    const userRole = session?.user?.role as string | undefined;
+    if (!userRole) return [];
+    return ROLE_ALLOWED_ACTIONS[userRole] || [];
+  }, [session]);
+
+  // Filter daftar yang berasal dari API agar hanya menampilkan yang diizinkan
+  const filteredActionOptions = useMemo(() => {
+    return filters.actions.filter((action) => allowedActions.includes(action));
+  }, [filters.actions, allowedActions]);
+
+  if (status === "loading" || !session) {
     return null;
   }
 
@@ -188,7 +234,7 @@ export default function MyActivityPage() {
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
                 <SelectItem value="all">All Actions</SelectItem>
-                {filters.actions.map(action => (
+                {filteredActionOptions.map((action) => (
                   <SelectItem key={action} value={action}>
                     {actionConfig[action]?.label || action}
                   </SelectItem>
@@ -213,7 +259,10 @@ export default function MyActivityPage() {
           {loading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-3 bg-zinc-800/50 rounded-lg">
+                <div
+                  key={i}
+                  className="flex items-center gap-4 p-3 bg-zinc-800/50 rounded-lg"
+                >
                   <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-1/4" />
@@ -284,7 +333,9 @@ export default function MyActivityPage() {
                   variant="outline"
                   size="sm"
                   disabled={pagination.page <= 1}
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                  }
                   className="border-zinc-700 text-zinc-300"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -294,7 +345,9 @@ export default function MyActivityPage() {
                   variant="outline"
                   size="sm"
                   disabled={pagination.page >= pagination.totalPages}
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
                   className="border-zinc-700 text-zinc-300"
                 >
                   Next
