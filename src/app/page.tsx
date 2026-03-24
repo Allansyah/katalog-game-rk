@@ -512,26 +512,70 @@ body {
 }
 
 /* Rarity Chips - Larger for Better Visibility */
-.rc{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  border-radius:30px;
-  padding:6px 14px;
-  font-size:12px;
-  font-weight:600;
-  transition:all 0.2s;
+
+/* Hapus .rc, .r5, .r4 lama, ganti dengan ini */
+.mini-card {
+  width: 72px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid rgba(255,255,255,0.08);
+  background: var(--bg3);
+  flex-shrink: 0;
+  transition: transform 0.2s;
 }
-.r5{
-  background:linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.05));
-  border:1px solid rgba(251,191,36,0.25);
-  color:var(--amber);
+.mini-card:hover { transform: translateY(-3px); }
+.mini-card.r5 { border-color: rgba(251,191,36,0.35); }
+.mini-card.r4 { border-color: rgba(192,132,252,0.3); }
+
+.mini-card-img {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255,77,140,0.08), rgba(45,212,191,0.05));
 }
-.r4{
-  background:linear-gradient(135deg, rgba(192,132,252,0.12), rgba(192,132,252,0.05));
-  border:1px solid rgba(192,132,252,0.2);
-  color:var(--purple);
+.mini-card-img.wep {
+  background: linear-gradient(135deg, rgba(45,212,191,0.08), rgba(192,132,252,0.05));
 }
+.mini-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.mini-card.r5 .mini-card-img::after {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--amber), #f59e0b);
+}
+.mini-card.r4 .mini-card-img::after {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--purple), #a855f7);
+}
+.mini-card-foot {
+  padding: 6px 6px 7px;
+  background: rgba(3,5,11,0.7);
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.mini-card-name {
+  font-size: 10px; font-weight: 700; color: var(--t1);
+  text-align: center; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.mini-card-stars { text-align: center; font-size: 8px; margin-top: 2px; }
+.mini-qty {
+  position: absolute; bottom: 4px; right: 4px;
+  background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px; padding: 1px 5px;
+  font-size: 9px; font-weight: 700; color: #fff;
+}
+.mini-card-more {
+  width: 72px; height: 96px; border-radius: 12px;
+  border: 1.5px dashed rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: var(--t3);
+  background: rgba(255,255,255,0.02);
+}
+
 .rc img {
   width: 28px;
   height: 28px;
@@ -1318,44 +1362,53 @@ function AccountCard({
           )}
         </div>
 
-        {/* Characters - Enhanced with Larger Images */}
+        {/* Characters */}
         {account.characters && account.characters.length > 0 && (
           <div>
-            <div className="sl flex items-center gap-2 mb-4">
+            <div className="sl flex items-center gap-2 mb-3">
               <Users size={12} /> Characters (
               {account.characters.reduce((s, c) => s + (c.quantity || 1), 0)})
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {account.characters.slice(0, 6).map((c, i) => (
                 <div
                   key={i}
-                  className={cn(
-                    "rc",
-                    c.rarity === 5 ? "r5" : "r4",
-                    "group relative",
-                  )}
+                  className={cn("mini-card", c.rarity === 5 ? "r5" : "r4")}
                 >
-                  {c.imageUrl ? (
-                    <img
-                      src={c.imageUrl}
-                      alt={c.name}
-                      className="w-7 h-7 rounded-full object-cover border border-white/20"
-                    />
-                  ) : (
-                    <Star size={16} />
-                  )}
-                  <span className="max-w-[70px] overflow-hidden text-ellipsis whitespace-nowrap font-semibold">
-                    {c.name}
-                  </span>
-                  {c.quantity && c.quantity > 1 && (
-                    <span className="bg-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-bold">
-                      ×{c.quantity}
-                    </span>
-                  )}
+                  <div
+                    className="mini-card-img"
+                    style={{ position: "relative" }}
+                  >
+                    {c.imageUrl ? (
+                      <img src={c.imageUrl} alt={c.name} />
+                    ) : (
+                      <Star
+                        size={24}
+                        color={
+                          c.rarity === 5 ? "var(--amber)" : "var(--purple)"
+                        }
+                      />
+                    )}
+                    {c.quantity && c.quantity > 1 && (
+                      <span className="mini-qty">×{c.quantity}</span>
+                    )}
+                  </div>
+                  <div className="mini-card-foot">
+                    <div className="mini-card-name">{c.name}</div>
+                    <div
+                      className="mini-card-stars"
+                      style={{
+                        color:
+                          c.rarity === 5 ? "var(--amber)" : "var(--purple)",
+                      }}
+                    >
+                      {"★".repeat(c.rarity)}
+                    </div>
+                  </div>
                 </div>
               ))}
               {account.characters.length > 6 && (
-                <div className="rc bg-white/5 border-white/10 text-gray-400">
+                <div className="mini-card-more">
                   +{account.characters.length - 6}
                 </div>
               )}
@@ -1363,37 +1416,53 @@ function AccountCard({
           </div>
         )}
 
-        {/* Weapons - Enhanced with Larger Images */}
+        {/* Weapons */}
         {account.weapons && account.weapons.length > 0 && (
           <div>
-            <div className="sl flex items-center gap-2 mb-4">
+            <div className="sl flex items-center gap-2 mb-3">
               <Trophy size={12} /> Weapons (
               {account.weapons.reduce((s, w) => s + (w.quantity || 1), 0)})
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {account.weapons.slice(0, 5).map((w, i) => (
-                <div key={i} className={cn("rc", w.rarity === 5 ? "r5" : "r4")}>
-                  {w.imageUrl ? (
-                    <img
-                      src={w.imageUrl}
-                      alt={w.name}
-                      className="w-7 h-7 rounded-full object-cover"
-                    />
-                  ) : (
-                    <Sword size={16} />
-                  )}
-                  <span className="max-w-[70px] overflow-hidden text-ellipsis whitespace-nowrap">
-                    {w.name}
-                  </span>
-                  {w.quantity && w.quantity > 1 && (
-                    <span className="bg-white/20 rounded-full px-1.5 py-0.5 text-[10px] font-bold">
-                      ×{w.quantity}
-                    </span>
-                  )}
+                <div
+                  key={i}
+                  className={cn("mini-card", w.rarity === 5 ? "r5" : "r4")}
+                >
+                  <div
+                    className="mini-card-img wep"
+                    style={{ position: "relative" }}
+                  >
+                    {w.imageUrl ? (
+                      <img src={w.imageUrl} alt={w.name} />
+                    ) : (
+                      <Sword
+                        size={24}
+                        color={
+                          w.rarity === 5 ? "var(--amber)" : "var(--purple)"
+                        }
+                      />
+                    )}
+                    {w.quantity && w.quantity > 1 && (
+                      <span className="mini-qty">×{w.quantity}</span>
+                    )}
+                  </div>
+                  <div className="mini-card-foot">
+                    <div className="mini-card-name">{w.name}</div>
+                    <div
+                      className="mini-card-stars"
+                      style={{
+                        color:
+                          w.rarity === 5 ? "var(--amber)" : "var(--purple)",
+                      }}
+                    >
+                      {"★".repeat(w.rarity)}
+                    </div>
+                  </div>
                 </div>
               ))}
               {account.weapons.length > 5 && (
-                <div className="rc bg-white/5 border-white/10 text-gray-400">
+                <div className="mini-card-more">
                   +{account.weapons.length - 5}
                 </div>
               )}
@@ -1587,7 +1656,7 @@ export default function LandingPage() {
               transition={{ duration: 0.6 }}
             >
               <div className="hero-badge">
-                <Sparkles size={14} /> Premium Gaming Marketplace
+                <Sparkles size={14} /> Accounts Marketplace
               </div>
             </motion.div>
 
