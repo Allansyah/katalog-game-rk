@@ -473,10 +473,10 @@ function AccountFormModal({
         serverId: formData.serverId || null,
         gender: formData.gender || null,
         characterSelections: formData.characterSelections.filter(
-          (c) => c.quantity > 0
+          (c) => c.quantity > 0,
         ),
         weaponSelections: formData.weaponSelections.filter(
-          (w) => w.quantity > 0
+          (w) => w.quantity > 0,
         ),
         basePrice: parseFloat(formData.basePrice),
         credentials: {
@@ -511,12 +511,12 @@ function AccountFormModal({
       toast.success(
         account
           ? "Account updated successfully"
-          : "Account created successfully"
+          : "Account created successfully",
       );
       onSuccess();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to save account"
+        error instanceof Error ? error.message : "Failed to save account",
       );
     } finally {
       setIsLoading(false);
@@ -526,20 +526,20 @@ function AccountFormModal({
   const handleCharacterChange = (characterId: string, quantity: number) => {
     setFormData((prev) => {
       const existing = prev.characterSelections.find(
-        (c) => c.characterId === characterId
+        (c) => c.characterId === characterId,
       );
       if (quantity <= 0) {
         return {
           ...prev,
           characterSelections: prev.characterSelections.filter(
-            (c) => c.characterId !== characterId
+            (c) => c.characterId !== characterId,
           ),
         };
       } else if (existing) {
         return {
           ...prev,
           characterSelections: prev.characterSelections.map((c) =>
-            c.characterId === characterId ? { ...c, quantity } : c
+            c.characterId === characterId ? { ...c, quantity } : c,
           ),
         };
       } else {
@@ -557,20 +557,20 @@ function AccountFormModal({
   const handleWeaponChange = (weaponId: string, quantity: number) => {
     setFormData((prev) => {
       const existing = prev.weaponSelections.find(
-        (w) => w.weaponId === weaponId
+        (w) => w.weaponId === weaponId,
       );
       if (quantity <= 0) {
         return {
           ...prev,
           weaponSelections: prev.weaponSelections.filter(
-            (w) => w.weaponId !== weaponId
+            (w) => w.weaponId !== weaponId,
           ),
         };
       } else if (existing) {
         return {
           ...prev,
           weaponSelections: prev.weaponSelections.map((w) =>
-            w.weaponId === weaponId ? { ...w, quantity } : w
+            w.weaponId === weaponId ? { ...w, quantity } : w,
           ),
         };
       } else {
@@ -705,8 +705,8 @@ function AccountFormModal({
                                   char.rarity === 5
                                     ? "bg-gradient-to-br from-amber-500 to-orange-600"
                                     : char.rarity === 4
-                                    ? "bg-gradient-to-br from-purple-500 to-pink-600"
-                                    : "bg-gradient-to-br from-blue-500 to-cyan-600"
+                                      ? "bg-gradient-to-br from-purple-500 to-pink-600"
+                                      : "bg-gradient-to-br from-blue-500 to-cyan-600"
                                 }`}
                               >
                                 {char.name.charAt(0)}
@@ -728,7 +728,7 @@ function AccountFormModal({
                                 onChange={(e) =>
                                   handleCharacterChange(
                                     char.id,
-                                    parseInt(e.target.value) || 0
+                                    parseInt(e.target.value) || 0,
                                   )
                                 }
                                 className="w-16 h-8 bg-zinc-900 border-zinc-700 text-center shrink-0"
@@ -778,8 +778,8 @@ function AccountFormModal({
                                   weapon.rarity === 5
                                     ? "bg-gradient-to-br from-amber-500 to-orange-600"
                                     : weapon.rarity === 4
-                                    ? "bg-gradient-to-br from-purple-500 to-pink-600"
-                                    : "bg-gradient-to-br from-blue-500 to-cyan-600"
+                                      ? "bg-gradient-to-br from-purple-500 to-pink-600"
+                                      : "bg-gradient-to-br from-blue-500 to-cyan-600"
                                 }`}
                               >
                                 {weapon.name.charAt(0)}
@@ -801,7 +801,7 @@ function AccountFormModal({
                                 onChange={(e) =>
                                   handleWeaponChange(
                                     weapon.id,
-                                    parseInt(e.target.value) || 0
+                                    parseInt(e.target.value) || 0,
                                   )
                                 }
                                 className="w-16 h-8 bg-zinc-900 border-zinc-700 text-center shrink-0"
@@ -1107,7 +1107,7 @@ function ImportCSVModal({
   const [isLoading, setIsLoading] = useState(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [step, setStep] = useState<"upload" | "mapping" | "preview">("upload");
-  
+
   const defaultMapping = {
     publicId: "", // ID will be ignored during import, handled by API
     level: "",
@@ -1123,8 +1123,9 @@ function ImportCSVModal({
     emailPassword: "",
   };
 
-  const [columnMapping, setColumnMapping] = useState<Record<string, string>>(defaultMapping);
-  
+  const [columnMapping, setColumnMapping] =
+    useState<Record<string, string>>(defaultMapping);
+
   const [importResult, setImportResult] = useState<{
     success: number;
     failed: number;
@@ -1136,23 +1137,27 @@ function ImportCSVModal({
   // Auto-Map Logic
   const autoMapColumns = (headers: string[]) => {
     const newMapping = { ...defaultMapping };
-    
-    headers.forEach(header => {
+
+    headers.forEach((header) => {
       const h = header.toLowerCase().trim();
-      if (h.includes('public') && h.includes('id')) newMapping.publicId = header;
-      else if (h === 'level') newMapping.level = header;
-      else if (h === 'diamond' || h === 'gems') newMapping.diamond = header;
-      else if (h === 'server') newMapping.server = header;
-      else if (h === 'gender') newMapping.gender = header;
-      else if (h === 'character' || h === 'characters') newMapping.characters = header;
-      else if (h === 'weapon' || h === 'weapons') newMapping.weapons = header;
-      else if (h === 'price' || h.includes('base')) newMapping.basePrice = header;
-      else if (h === 'username' || h === 'user') newMapping.username = header;
-      else if (h === 'password' || h === 'pass') newMapping.password = header;
-      else if (h === 'email') newMapping.email = header;
-      else if (h.includes('emailpass') || h.includes('email_pass')) newMapping.emailPassword = header;
+      if (h.includes("public") && h.includes("id"))
+        newMapping.publicId = header;
+      else if (h === "level") newMapping.level = header;
+      else if (h === "diamond" || h === "gems") newMapping.diamond = header;
+      else if (h === "server") newMapping.server = header;
+      else if (h === "gender") newMapping.gender = header;
+      else if (h === "character" || h === "characters")
+        newMapping.characters = header;
+      else if (h === "weapon" || h === "weapons") newMapping.weapons = header;
+      else if (h === "price" || h.includes("base"))
+        newMapping.basePrice = header;
+      else if (h === "username" || h === "user") newMapping.username = header;
+      else if (h === "password" || h === "pass") newMapping.password = header;
+      else if (h === "email") newMapping.email = header;
+      else if (h.includes("emailpass") || h.includes("email_pass"))
+        newMapping.emailPassword = header;
     });
-    
+
     setColumnMapping(newMapping);
   };
 
@@ -1167,7 +1172,7 @@ function ImportCSVModal({
       complete: (results) => {
         const headers = Object.keys(results.data[0] || {});
         autoMapColumns(headers);
-        setPreviewData(results.data.slice(0, 5)); 
+        setPreviewData(results.data.slice(0, 5));
         setStep("mapping");
       },
       error: (error) => {
@@ -1178,8 +1183,18 @@ function ImportCSVModal({
 
   const downloadTemplate = () => {
     const headers = [
-      "publicId", "level", "diamond", "server", "gender", 
-      "characters", "weapons", "basePrice", "username", "password", "email", "emailPassword"
+      "publicId",
+      "level",
+      "diamond",
+      "server",
+      "gender",
+      "characters",
+      "weapons",
+      "basePrice",
+      "username",
+      "password",
+      "email",
+      "emailPassword",
     ];
 
     const csvContent = [
@@ -1215,66 +1230,78 @@ function ImportCSVModal({
 
         for (let i = 0; i < accounts.length; i++) {
           const row = accounts[i] as any;
-          const rowNumber = i + 2; 
+          const rowNumber = i + 2;
 
           try {
             // Helper to get value safely
             const getVal = (key: string) => {
-                const col = columnMapping[key];
-                if (!col || col === "ignore") return "";
-                return (row[col] || "").toString().trim();
+              const col = columnMapping[key];
+              if (!col || col === "ignore") return "";
+              return (row[col] || "").toString().trim();
             };
 
             // 1. Parse Characters: "Name|Qty|Rarity, Name2|Qty|Rarity"
             // FIXED: Skip if not found in DB instead of sending garbage
-            const characters = getVal('characters') 
-              ? getVal('characters').split(",").map((c: string) => {
-                  const parts = c.split("|").map(p => p.trim());
-                  const [name, quantity, rarity] = parts;
-                  
-                  const character = selectedGame?.characters.find(
-                    (ch) => ch.name.toLowerCase() === name.toLowerCase()
-                  );
-                  
-                  if (!character) {
-                    console.warn(`[Row ${rowNumber}] Character "${name}" not found in game database. Skipping.`);
-                    return null;
-                  }
-                  
-                  return {
-                    characterId: character.id,
-                    quantity: parseInt(quantity) || 1,
-                  };
-                }).filter((c: any) => c !== null) // Filter out nulls
+            const characters = getVal("characters")
+              ? getVal("characters")
+                  .split(",")
+                  .map((c: string) => {
+                    const parts = c.split("|").map((p) => p.trim());
+                    const [name, quantity, rarity] = parts;
+
+                    const character = selectedGame?.characters.find(
+                      (ch) => ch.name.toLowerCase() === name.toLowerCase(),
+                    );
+
+                    if (!character) {
+                      console.warn(
+                        `[Row ${rowNumber}] Character "${name}" not found in game database. Skipping.`,
+                      );
+                      return null;
+                    }
+
+                    return {
+                      characterId: character.id,
+                      quantity: parseInt(quantity) || 1,
+                    };
+                  })
+                  .filter((c: any) => c !== null) // Filter out nulls
               : [];
 
             // 2. Parse Weapons
             // FIXED: Skip if not found in DB
-            const weapons = getVal('weapons') 
-              ? getVal('weapons').split(",").map((w: string) => {
-                  const parts = w.split("|").map(p => p.trim());
-                  const [name, quantity, rarity] = parts;
-                  
-                  const weapon = selectedGame?.weapons.find(
-                    (wp) => wp.name.toLowerCase() === name.toLowerCase()
-                  );
+            const weapons = getVal("weapons")
+              ? getVal("weapons")
+                  .split(",")
+                  .map((w: string) => {
+                    const parts = w.split("|").map((p) => p.trim());
+                    const [name, quantity, rarity] = parts;
 
-                  if (!weapon) {
-                    console.warn(`[Row ${rowNumber}] Weapon "${name}" not found in game database. Skipping.`);
-                    return null;
-                  }
+                    const weapon = selectedGame?.weapons.find(
+                      (wp) => wp.name.toLowerCase() === name.toLowerCase(),
+                    );
 
-                  return {
-                    weaponId: weapon.id,
-                    quantity: parseInt(quantity) || 1,
-                  };
-                }).filter((w: any) => w !== null)
+                    if (!weapon) {
+                      console.warn(
+                        `[Row ${rowNumber}] Weapon "${name}" not found in game database. Skipping.`,
+                      );
+                      return null;
+                    }
+
+                    return {
+                      weaponId: weapon.id,
+                      quantity: parseInt(quantity) || 1,
+                    };
+                  })
+                  .filter((w: any) => w !== null)
               : [];
 
             // 3. Server Lookup (Nama -> ID)
-            const serverName = getVal('server');
+            const serverName = getVal("server");
             const serverObj = selectedGame?.servers.find(
-              (s) => s.name.toLowerCase() === serverName.toLowerCase() || s.code?.toLowerCase() === serverName.toLowerCase()
+              (s) =>
+                s.name.toLowerCase() === serverName.toLowerCase() ||
+                s.code?.toLowerCase() === serverName.toLowerCase(),
             );
             const serverId = serverObj ? serverObj.id : null;
 
@@ -1282,25 +1309,28 @@ function ImportCSVModal({
             // NOTE: We do NOT send 'publicId'. API will generate it.
             const payload = {
               gameId: selectedGameId,
-              level: parseInt(getVal('level')) || null,
-              diamond: parseInt(getVal('diamond')) || 0,
+              level: parseInt(getVal("level")) || null,
+              diamond: parseInt(getVal("diamond")) || 0,
               serverId: serverId,
-              gender: getVal('gender')?.toUpperCase() || null,
+              gender: getVal("gender")?.toUpperCase() || null,
               characterSelections: characters,
               weaponSelections: weapons,
-              basePrice: parseFloat(getVal('basePrice')) || 0,
+              basePrice: parseFloat(getVal("basePrice")) || 0,
               credentials: {
-                username: getVal('username'),
-                password: getVal('password'),
-                email: getVal('email'),
-                emailPassword: getVal('emailPassword'),
+                username: getVal("username"),
+                password: getVal("password"),
+                email: getVal("email"),
+                emailPassword: getVal("emailPassword"),
               },
             };
 
             // Validation
-            if (!payload.credentials.username) throw new Error("Username is required");
-            if (!payload.credentials.password) throw new Error("Password is required");
-            if (payload.basePrice <= 0) throw new Error("Base price must be greater than 0");
+            if (!payload.credentials.username)
+              throw new Error("Username is required");
+            if (!payload.credentials.password)
+              throw new Error("Password is required");
+            if (payload.basePrice <= 0)
+              throw new Error("Base price must be greater than 0");
 
             const res = await fetch("/api/accounts", {
               method: "POST",
@@ -1334,7 +1364,7 @@ function ImportCSVModal({
           onSuccess();
         } else {
           toast.error(
-            `Imported ${success.length} accounts, ${failed.length} failed`
+            `Imported ${success.length} accounts, ${failed.length} failed`,
           );
         }
 
@@ -1361,7 +1391,8 @@ function ImportCSVModal({
     onClose();
   };
 
-  const availableColumns = previewData.length > 0 ? Object.keys(previewData[0]) : [];
+  const availableColumns =
+    previewData.length > 0 ? Object.keys(previewData[0]) : [];
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -1445,9 +1476,17 @@ function ImportCSVModal({
                     Important Notes:
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-zinc-400">
-                    <li><strong>Public ID</strong> in CSV will be ignored. New IDs are generated by the system.</li>
-                    <li>Character/Weapon names must match the database exactly.</li>
-                    <li>System will automatically skip invalid items instead of failing the entire import.</li>
+                    <li>
+                      <strong>Public ID</strong> in CSV will be ignored. New IDs
+                      are generated by the system.
+                    </li>
+                    <li>
+                      Character/Weapon names must match the database exactly.
+                    </li>
+                    <li>
+                      System will automatically skip invalid items instead of
+                      failing the entire import.
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -1474,12 +1513,18 @@ function ImportCSVModal({
             <div className="bg-zinc-800/50 p-4 rounded-lg">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="text-white font-medium">Map CSV Columns</h4>
-                <span className="text-xs text-emerald-400 bg-emerald-900/20 px-2 py-1 rounded">Auto-Mapped</span>
+                <span className="text-xs text-emerald-400 bg-emerald-900/20 px-2 py-1 rounded">
+                  Auto-Mapped
+                </span>
               </div>
-              
+
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                 {[
-                  { key: "publicId", label: "Public ID (Ignored)", required: false },
+                  {
+                    key: "publicId",
+                    label: "Public ID (Ignored)",
+                    required: false,
+                  },
                   { key: "level", label: "Level", required: false },
                   { key: "diamond", label: "Diamond", required: false },
                   { key: "server", label: "Server", required: false },
@@ -1490,7 +1535,11 @@ function ImportCSVModal({
                   { key: "username", label: "Username", required: true },
                   { key: "password", label: "Password", required: true },
                   { key: "email", label: "Email", required: false },
-                  { key: "emailPassword", label: "Email Password", required: false },
+                  {
+                    key: "emailPassword",
+                    label: "Email Password",
+                    required: false,
+                  },
                 ].map((field) => (
                   <div
                     key={field.key}
@@ -1517,7 +1566,7 @@ function ImportCSVModal({
                       <SelectContent className="bg-zinc-800 border-zinc-700">
                         {/* FIX: Use value="ignore" instead of empty string */}
                         <SelectItem value="ignore">Ignore</SelectItem>
-                        
+
                         {availableColumns.map((col) => (
                           <SelectItem key={col} value={col}>
                             {col}
@@ -1538,7 +1587,10 @@ function ImportCSVModal({
                     <TableHeader>
                       <TableRow className="border-zinc-700">
                         {Object.keys(previewData[0]).map((header) => (
-                          <TableHead key={header} className="text-zinc-400 text-xs">
+                          <TableHead
+                            key={header}
+                            className="text-zinc-400 text-xs"
+                          >
                             {header}
                           </TableHead>
                         ))}
@@ -1548,7 +1600,10 @@ function ImportCSVModal({
                       {previewData.map((row, idx) => (
                         <TableRow key={idx} className="border-zinc-700">
                           {Object.values(row).map((value: any, cellIdx) => (
-                            <TableCell key={cellIdx} className="text-white text-xs py-2">
+                            <TableCell
+                              key={cellIdx}
+                              className="text-white text-xs py-2"
+                            >
                               {String(value).substring(0, 20)}
                               {String(value).length > 20 && "..."}
                             </TableCell>
@@ -1612,7 +1667,10 @@ function ImportCSVModal({
                   <h5 className="text-white font-medium mb-2">Errors:</h5>
                   <div className="bg-red-600/10 border border-red-600/20 rounded-lg p-3 max-h-40 overflow-y-auto">
                     {importResult.errors.map((error, idx) => (
-                      <div key={idx} className="text-sm text-red-400 mb-1 font-mono">
+                      <div
+                        key={idx}
+                        className="text-sm text-red-400 mb-1 font-mono"
+                      >
                         {error}
                       </div>
                     ))}

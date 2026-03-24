@@ -10,11 +10,20 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Rikkastore.id - Game Account Marketplace",
-  description: "B2B platform for buying and selling game accounts. Secure transactions with tiered pricing for resellers.",
-  keywords: ["game accounts", "Wuthering Waves", "Genshin Impact", "HSR", "ZZZ", "marketplace", "B2B"],
+  description:
+    "B2B platform for buying and selling game accounts. Secure transactions with tiered pricing for resellers.",
+  keywords: [
+    "game accounts",
+    "Wuthering Waves",
+    "Genshin Impact",
+    "HSR",
+    "ZZZ",
+    "marketplace",
+    "B2B",
+  ],
   authors: [{ name: "Rikkastore Team" }],
   icons: {
-    icon: "/logo.svg",
+    icon: "/rikkastore.png",
   },
   openGraph: {
     title: "Rikkastore.id - Game Account Marketplace",
