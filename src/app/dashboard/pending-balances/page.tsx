@@ -362,7 +362,7 @@ export default function PendingBalancesAdminPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>(
-    {}
+    {},
   );
   const [search, setSearch] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -386,7 +386,7 @@ export default function PendingBalancesAdminPage() {
     queryKey: ["pending-balances-admin", "PENDING", dateRange, search],
     queryFn: async () => {
       const res = await fetch(
-        `/api/pending-balances?${queryParams.toString()}`
+        `/api/pending-balances?${queryParams.toString()}`,
       );
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
@@ -436,9 +436,13 @@ export default function PendingBalancesAdminPage() {
   });
 
   // Mutation untuk release multiple
+  // ... kode sebelumnya
+
+  // Mutation untuk release multiple (BAGIAN YANG DIUBAH)
   const releaseMultipleMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const res = await fetch("/api/pending-balances/bulk", {
+      // UBAH URL DARI /bulk MENJADI / (root endpoint)
+      const res = await fetch("/api/pending-balances", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, status: "RELEASED" }),
@@ -455,6 +459,8 @@ export default function PendingBalancesAdminPage() {
       toast.error(error.message);
     },
   });
+
+  // ... kode setelahnya
 
   const handleRelease = (id: string) => {
     setConfirmDialog({ open: true, type: "single", ids: [id] });
@@ -515,7 +521,7 @@ export default function PendingBalancesAdminPage() {
   const totalPending =
     pendingData?.pendingBalances?.reduce(
       (sum: number, pb: any) => sum + pb.amount,
-      0
+      0,
     ) || 0;
 
   return (

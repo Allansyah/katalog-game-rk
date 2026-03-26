@@ -140,7 +140,7 @@ interface FormData {
 const initialFormData: FormData = {
   gameId: "",
   level: "",
-  diamond: "0",
+  diamond: "",
   serverId: "",
   gender: "",
   characterSelections: [],
@@ -825,6 +825,7 @@ function AccountFormModal({
                       setFormData((p) => ({ ...p, level: e.target.value }))
                     }
                     className="bg-zinc-800 border-zinc-700"
+                    placeholder="Level of the account"
                   />
                 </div>
                 <div className="space-y-2">
@@ -836,6 +837,7 @@ function AccountFormModal({
                       setFormData((p) => ({ ...p, diamond: e.target.value }))
                     }
                     className="bg-zinc-800 border-zinc-700"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -868,6 +870,7 @@ function AccountFormModal({
                   }
                   className="bg-zinc-800 border-zinc-700"
                   required
+                  placeholder="Rp.0"
                 />
               </div>
 

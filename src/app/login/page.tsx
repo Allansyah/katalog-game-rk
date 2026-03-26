@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
+import Image from "next/image";
 
 // 2. Move your logic into a sub-component
 function LoginForm() {
@@ -139,7 +140,13 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
-            <Package className="h-10 w-10 text-emerald-500" />
+            <Image
+              src="/rikkastore.png"
+              alt="Rikkastore"
+              width={42}
+              height={42}
+              className="w-10 h-10 object-contain"
+            />
             <span className="text-2xl font-bold text-white">Rikkastore</span>
           </Link>
         </div>

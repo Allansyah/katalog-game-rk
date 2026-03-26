@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react"; // Ditambah useEffect
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,7 +36,8 @@ import {
   Award,
   Gamepad2,
   RefreshCw,
-} from "lucide-react"; // Pastikan semua icon yang digunakan ada di sini
+  FileText,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -47,7 +48,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-// ── Types ──────────────────────────────────────────────────────────
+// ... (Interface Types tetap sama) ...
 interface Game {
   id: string;
   name: string;
@@ -126,9 +127,19 @@ const LEVEL_OPTIONS = [
   { label: "Min. Lv. 70", value: "70" },
 ];
 
-// ── Global CSS with Fixed Layout & Enhanced Styling ─────────────────────────────────────
+// Helper Shuffle
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+// CSS Styles (G) tetap sama persis
 const G = `
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root{
   --bg:#03050b;
@@ -153,48 +164,14 @@ const G = `
   --glass:rgba(255,255,255,0.02);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { color: var(--t1); background: var(--bg); font-family: 'Nunito', sans-serif; overflow-x: hidden; }
+.main-container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 24px; }
 
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  color: var(--t1);
-  background: var(--bg);
-  font-family: 'Inter', sans-serif;
-  overflow-x: hidden;
-}
-
-/* Main container dengan padding yang benar */
-.main-container {
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-@media (min-width: 640px) {
-  .main-container {
-    padding: 0 32px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .main-container {
-    padding: 0 48px;
-  }
-}
-
-@media (min-width: 1280px) {
-  .main-container {
-    padding: 0 64px;
-  }
-}
+@media (min-width: 640px) { .main-container { padding: 0 32px; } }
+@media (min-width: 1024px) { .main-container { padding: 0 48px; } }
+@media (min-width: 1280px) { .main-container { padding: 0 64px; } }
 
 .page-bg{
   background:radial-gradient(ellipse at 20% 30%, rgba(255,77,140,0.08) 0%, transparent 60%),
@@ -202,816 +179,131 @@ body {
              linear-gradient(180deg, var(--bg) 0%, #05080f 100%);
   min-height:100vh;
 }
-.ff-display{font-family:'Space Grotesk',sans-serif;}
-.ff-title{font-family:'Plus Jakarta Sans',sans-serif;}
-.ff-body{font-family:'Inter',sans-serif;}
 
-/* Animated gradient border */
-.gradient-border {
-  position: relative;
-  background: linear-gradient(135deg, var(--bg3), var(--bg2));
-  border-radius: 24px;
-}
-.gradient-border::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  background: linear-gradient(135deg, var(--pink), var(--cyan), var(--purple));
-  border-radius: 25px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: -1;
-}
-.gradient-border:hover::before {
-  opacity: 1;
-}
+.ff-display{font-family:'Nunito',sans-serif;}
+.ff-title{font-family:'Nunito',sans-serif;}
+.ff-body{font-family:'Nunito',sans-serif;}
 
-/* Glassmorphism */
-.glass {
-  background: rgba(15,22,34,0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.05);
-}
+.gradient-border { position: relative; background: linear-gradient(135deg, var(--bg3), var(--bg2)); border-radius: 24px; }
+.gradient-border::before { content: ''; position: absolute; inset: -1px; background: linear-gradient(135deg, var(--pink), var(--cyan), var(--purple)); border-radius: 25px; opacity: 0; transition: opacity 0.3s ease; z-index: -1; }
+.gradient-border:hover::before { opacity: 1; }
 
-/* Navbar */
-.nav{
-  position:sticky;
-  top:0;
-  z-index:100;
-  background:rgba(3,5,11,0.85);
-  backdrop-filter:blur(20px) saturate(180%);
-  border-bottom:1px solid rgba(255,77,140,0.15);
-}
+.glass { background: rgba(15,22,34,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
 
-.nav-inner{
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px;
-  height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+.nav{ position:sticky; top:0; z-index:100; background:rgba(3,5,11,0.85); backdrop-filter:blur(20px) saturate(180%); border-bottom:1px solid rgba(255,77,140,0.15); }
+.nav-inner{ width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 24px; height: 70px; display: flex; align-items: center; justify-content: space-between; }
+@media (min-width: 640px) { .nav-inner { padding: 0 32px; } }
+@media (min-width: 1024px) { .nav-inner { padding: 0 48px; } }
 
-@media (min-width: 640px) {
-  .nav-inner {
-    padding: 0 32px;
-  }
-}
+.orb{ position:fixed; border-radius:50%; filter:blur(120px); pointer-events:none; z-index:0; animation: float 20s ease-in-out infinite; }
+@keyframes float { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(30px, -20px) scale(1.1); } }
 
-@media (min-width: 1024px) {
-  .nav-inner {
-    padding: 0 48px;
-  }
-}
+.hero-section { text-align: center; padding: 80px 0 60px; }
+@media (min-width: 768px) { .hero-section { padding: 100px 0 80px; } }
 
-/* Orb Effects */
-.orb{
-  position:fixed;
-  border-radius:50%;
-  filter:blur(120px);
-  pointer-events:none;
-  z-index:0;
-  animation: float 20s ease-in-out infinite;
-}
-@keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(30px, -20px) scale(1.1); }
-}
+.hero-badge{ display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg, rgba(255,77,140,0.15), rgba(45,212,191,0.1)); border:1px solid rgba(255,77,140,0.25); border-radius:100px; padding:10px 24px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:600; letter-spacing:0.05em; color:var(--pink); text-transform:uppercase; backdrop-filter:blur(8px); margin-bottom: 28px; }
+.hero-title { font-family: 'Nunito', sans-serif; font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 20px; color: var(--t1); }
+.hero-subtitle { color: var(--t2); font-size: clamp(1rem, 2vw, 1.25rem); max-width: 600px; margin: 0 auto; line-height: 1.7; }
 
-/* Hero Section */
-.hero-section {
-  text-align: center;
-  padding: 80px 0 60px;
-}
-
-@media (min-width: 768px) {
-  .hero-section {
-    padding: 100px 0 80px;
-  }
-}
-
-.hero-badge{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  background:linear-gradient(135deg, rgba(255,77,140,0.15), rgba(45,212,191,0.1));
-  border:1px solid rgba(255,77,140,0.25);
-  border-radius:100px;
-  padding:10px 24px;
-  font-family:'Inter',sans-serif;
-  font-size:12px;
-  font-weight:600;
-  letter-spacing:0.05em;
-  color:var(--pink);
-  text-transform:uppercase;
-  backdrop-filter:blur(8px);
-  margin-bottom: 28px;
-}
-
-.hero-title {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin-bottom: 20px;
-  color: var(--t1);
-}
-
-.hero-subtitle {
-  color: var(--t2);
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  max-width: 600px;
-  margin: 0 auto;
-  line-height: 1.7;
-}
-
-/* Game Card - Enhanced with proper sizing */
-.gc{
-  position:relative;
-  border-radius:24px;
-  overflow:hidden;
-  cursor:pointer;
-  border:1px solid var(--border);
-  transition:all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-  height:180px;
-  background:linear-gradient(135deg, var(--bg3), var(--bg2));
-  isolation:isolate;
-}
-.gc:hover{
-  border-color:rgba(255,77,140,0.5);
-  transform:translateY(-8px) scale(1.02);
-  box-shadow:0 25px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,77,140,0.2), 0 0 40px rgba(255,77,140,0.2);
-}
-.gc-art{
-  position:absolute;
-  inset:0;
-  object-fit:cover;
-  width:100%;
-  height:100%;
-  transition:transform 0.6s ease;
-  filter:brightness(0.65);
-}
-.gc:hover .gc-art{
-  transform:scale(1.1);
-  filter:brightness(0.8);
-}
-.gc-ov{
-  position:absolute;
-  inset:0;
-  background:linear-gradient(105deg, rgba(3,5,11,0.95) 0%, rgba(3,5,11,0.7) 50%, rgba(3,5,11,0.2) 100%);
-}
-.gc-body{
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  gap:24px;
-  padding:0 28px;
-}
-.gc-icon{
-  width:100px;
-  height:100px;
-  flex-shrink:0;
-  border-radius:22px;
-  overflow:hidden;
-  border:2px solid rgba(255,77,140,0.4);
-  box-shadow:0 0 40px rgba(255,77,140,0.3), inset 0 0 20px rgba(0,0,0,0.5);
-  position:relative;
-  background:var(--bg2);
-  transition: all 0.3s ease;
-}
-.gc:hover .gc-icon {
-  border-color: rgba(255,77,140,0.6);
-  box-shadow: 0 0 50px rgba(255,77,140,0.4), inset 0 0 20px rgba(0,0,0,0.5);
-  transform: scale(1.05);
-}
+.gc{ position:relative; border-radius:24px; overflow:hidden; cursor:pointer; border:1px solid var(--border); transition:all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1); height:180px; background:linear-gradient(135deg, var(--bg3), var(--bg2)); isolation:isolate; }
+.gc:hover{ border-color:rgba(255,77,140,0.5); transform:translateY(-8px) scale(1.02); box-shadow:0 25px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,77,140,0.2), 0 0 40px rgba(255,77,140,0.2); }
+.gc-art{ position:absolute; inset:0; object-fit:cover; width:100%; height:100%; transition:transform 0.6s ease; filter:brightness(0.65); }
+.gc:hover .gc-art{ transform:scale(1.1); filter:brightness(0.8); }
+.gc-ov{ position:absolute; inset:0; background:linear-gradient(105deg, rgba(3,5,11,0.95) 0%, rgba(3,5,11,0.7) 50%, rgba(3,5,11,0.2) 100%); }
+.gc-body{ position:absolute; inset:0; display:flex; align-items:center; gap:24px; padding:0 28px; }
+.gc-icon{ width:100px; height:100px; flex-shrink:0; border-radius:22px; overflow:hidden; border:2px solid rgba(255,77,140,0.4); box-shadow:0 0 40px rgba(255,77,140,0.3), inset 0 0 20px rgba(0,0,0,0.5); position:relative; background:var(--bg2); transition: all 0.3s ease; }
+.gc:hover .gc-icon { border-color: rgba(255,77,140,0.6); box-shadow: 0 0 50px rgba(255,77,140,0.4), inset 0 0 20px rgba(0,0,0,0.5); transform: scale(1.05); }
 .gc-meta{flex:1;min-width:0;}
-.gc-code{
-  font-family:'Inter',sans-serif;
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:0.15em;
-  text-transform:uppercase;
-  color:rgba(255,77,140,0.7);
-  margin-bottom:8px;
-}
-.gc-name{
-  font-family:'Space Grotesk',sans-serif;
-  font-weight:800;
-  font-size:26px;
-  color:var(--t1);
-  line-height:1.15;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  letter-spacing:-0.02em;
-  transition: color 0.3s;
-}
-.gc:hover .gc-name {
-  color: var(--pink);
-}
-.gc-cnt{
-  margin-top:12px;
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  background:rgba(255,77,140,0.12);
-  border:1px solid rgba(255,77,140,0.25);
-  border-radius:30px;
-  padding:6px 16px;
-  font-family:'Inter',sans-serif;
-  font-size:12px;
-  font-weight:600;
-  color:rgba(255,77,140,0.9);
-  transition: all 0.3s;
-}
-.gc:hover .gc-cnt {
-  background: rgba(255,77,140,0.18);
-  border-color: rgba(255,77,140,0.35);
-}
-.gc-shimmer{
-  position:absolute;
-  inset:0;
-  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,0.08) 50%,transparent 70%);
-  transform:translateX(-100%);
-  transition:transform 0.6s ease;
-}
+.gc-code{ font-family:'Nunito',sans-serif; font-size:11px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:rgba(255,77,140,0.7); margin-bottom:8px; }
+.gc-name{ font-family:'Nunito',sans-serif; font-weight:800; font-size:26px; color:var(--t1); line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:-0.02em; transition: color 0.3s; }
+.gc:hover .gc-name { color: var(--pink); }
+.gc-cnt{ margin-top:12px; display:inline-flex; align-items:center; gap:8px; background:rgba(255,77,140,0.12); border:1px solid rgba(255,77,140,0.25); border-radius:30px; padding:6px 16px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:600; color:rgba(255,77,140,0.9); transition: all 0.3s; }
+.gc:hover .gc-cnt { background: rgba(255,77,140,0.18); border-color: rgba(255,77,140,0.35); }
+.gc-shimmer{ position:absolute; inset:0; background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,0.08) 50%,transparent 70%); transform:translateX(-100%); transition:transform 0.6s ease; }
 .gc:hover .gc-shimmer{transform:translateX(100%);}
-.gc::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--pink), var(--cyan), transparent);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
+.gc::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--pink), var(--cyan), transparent); opacity: 0; transition: opacity 0.3s; }
 .gc:hover::after{opacity:1;}
 
-/* Account Card - Premium Design */
-.ac{
-  background:linear-gradient(135deg, rgba(15,22,34,0.9), rgba(10,15,26,0.95));
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:24px;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  transition:all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-  position:relative;
-  backdrop-filter:blur(4px);
-}
-.ac::before{
-  content:'';
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  height:2px;
-  background:linear-gradient(90deg, var(--pink), var(--cyan), var(--purple));
-  opacity:0;
-  transition:opacity 0.3s;
-}
+/* Sisa CSS (Account Card, Filter, dll) diasumsikan sama dan dipotong untuk brevity, tapi ada di kode asli Anda */
+.ac{ background:linear-gradient(135deg, rgba(15,22,34,0.9), rgba(10,15,26,0.95)); border:1px solid rgba(255,255,255,0.08); border-radius:24px; overflow:hidden; display:flex; flex-direction:column; transition:all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1); position:relative; backdrop-filter:blur(4px); }
+.ac::before{ content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, var(--pink), var(--cyan), var(--purple)); opacity:0; transition:opacity 0.3s; }
 .ac:hover::before{opacity:1;}
-.ac:hover{
-  border-color:rgba(255,77,140,0.3);
-  transform:translateY(-6px);
-  box-shadow:0 25px 50px rgba(0,0,0,0.4), 0 0 40px rgba(255,77,140,0.1);
-}
-
-/* Enhanced Stats Pills */
-.sp{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:8px 14px;
-  border-radius:40px;
-  font-family:'Inter',sans-serif;
-  font-weight:600;
-  font-size:13px;
-  transition:all 0.2s;
-}
-.sp-lv{
-  background:linear-gradient(135deg, rgba(255,77,140,0.12), rgba(255,77,140,0.05));
-  border:1px solid rgba(255,77,140,0.2);
-  color:var(--pink);
-}
-.sp-gm{
-  background:linear-gradient(135deg, rgba(45,212,191,0.1), rgba(45,212,191,0.05));
-  border:1px solid rgba(45,212,191,0.2);
-  color:var(--cyan);
-}
-.sp-sv{
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.1);
-  color:var(--t2);
-}
-
-/* Rarity Chips - Larger for Better Visibility */
-
-/* Hapus .rc, .r5, .r4 lama, ganti dengan ini */
-.mini-card {
-  width: 72px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1.5px solid rgba(255,255,255,0.08);
-  background: var(--bg3);
-  flex-shrink: 0;
-  transition: transform 0.2s;
-}
+.ac:hover{ border-color:rgba(255,77,140,0.3); transform:translateY(-6px); box-shadow:0 25px 50px rgba(0,0,0,0.4), 0 0 40px rgba(255,77,140,0.1); }
+.sp{ display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:40px; font-family:'Nunito',sans-serif; font-weight:600; font-size:13px; transition:all 0.2s; }
+.sp-lv{ background:linear-gradient(135deg, rgba(255,77,140,0.12), rgba(255,77,140,0.05)); border:1px solid rgba(255,77,140,0.2); color:var(--pink); }
+.sp-gm{ background:linear-gradient(135deg, rgba(45,212,191,0.1), rgba(45,212,191,0.05)); border:1px solid rgba(45,212,191,0.2); color:var(--cyan); }
+.sp-sv{ background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--t2); }
+.mini-card { width: 72px; border-radius: 12px; overflow: hidden; border: 1.5px solid rgba(255,255,255,0.08); background: var(--bg3); flex-shrink: 0; transition: transform 0.2s; }
 .mini-card:hover { transform: translateY(-3px); }
 .mini-card.r5 { border-color: rgba(251,191,36,0.35); }
 .mini-card.r4 { border-color: rgba(192,132,252,0.3); }
-
-.mini-card-img {
-  width: 72px;
-  height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, rgba(255,77,140,0.08), rgba(45,212,191,0.05));
-}
-.mini-card-img.wep {
-  background: linear-gradient(135deg, rgba(45,212,191,0.08), rgba(192,132,252,0.05));
-}
+.mini-card-img { width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; background: linear-gradient(135deg, rgba(255,77,140,0.08), rgba(45,212,191,0.05)); }
+.mini-card-img.wep { background: linear-gradient(135deg, rgba(45,212,191,0.08), rgba(192,132,252,0.05)); }
 .mini-card-img img { width: 100%; height: 100%; object-fit: cover; }
-.mini-card.r5 .mini-card-img::after {
-  content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, var(--amber), #f59e0b);
-}
-.mini-card.r4 .mini-card-img::after {
-  content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, var(--purple), #a855f7);
-}
-.mini-card-foot {
-  padding: 6px 6px 7px;
-  background: rgba(3,5,11,0.7);
-  border-top: 1px solid rgba(255,255,255,0.05);
-}
-.mini-card-name {
-  font-size: 10px; font-weight: 700; color: var(--t1);
-  text-align: center; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
-}
+.mini-card.r5 .mini-card-img::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--amber), #f59e0b); }
+.mini-card.r4 .mini-card-img::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--purple), #a855f7); }
+.mini-card-foot { padding: 6px 6px 7px; background: rgba(3,5,11,0.7); border-top: 1px solid rgba(255,255,255,0.05); }
+.mini-card-name { font-size: 10px; font-weight: 700; color: var(--t1); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mini-card-stars { text-align: center; font-size: 8px; margin-top: 2px; }
-.mini-qty {
-  position: absolute; bottom: 4px; right: 4px;
-  background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 20px; padding: 1px 5px;
-  font-size: 9px; font-weight: 700; color: #fff;
-}
-.mini-card-more {
-  width: 72px; height: 96px; border-radius: 12px;
-  border: 1.5px dashed rgba(255,255,255,0.1);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; color: var(--t3);
-  background: rgba(255,255,255,0.02);
-}
-
-.rc img {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(255,255,255,0.1);
-}
-
-/* Price Styling */
-.sl{
-  font-family:'Inter',sans-serif;
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:0.12em;
-  text-transform:uppercase;
-  color:var(--t3);
-}
-.pn{
-  font-family:'Space Grotesk',sans-serif;
-  font-weight:800;
-  font-size:28px;
-  background:linear-gradient(135deg, #fff, var(--pink));
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  background-clip:text;
-}
-.pc{
-  font-family:'Inter',sans-serif;
-  font-size:14px;
-  font-weight:600;
-  color:var(--t3);
-  margin-right:4px;
-}
-
-/* Buttons */
-.btn-pk{
-  background:linear-gradient(135deg, var(--pink) 0%, var(--pink2) 100%);
-  box-shadow:0 6px 25px rgba(255,77,140,0.4);
-  color:#fff;
-  border:none;
-  border-radius:14px;
-  padding:12px 26px;
-  cursor:pointer;
-  font-family:'Inter',sans-serif;
-  font-weight:700;
-  font-size:14px;
-  transition:all 0.25s;
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  position:relative;
-  overflow:hidden;
-}
-.btn-pk:hover{
-  transform:translateY(-3px);
-  box-shadow:0 10px 35px rgba(255,77,140,0.6);
-}
+.mini-qty { position: absolute; top: 6px; right: 6px; background: var(--pink); color: white; border: 1px solid rgba(255,255,255,0.5); border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 800; box-shadow: 0 2px 8px rgba(0,0,0,0.4); z-index: 10; }
+.mini-card-more { width: 72px; height: 96px; border-radius: 12px; border: 1.5px dashed rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--t3); background: rgba(255,255,255,0.02); }
+.rc img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); }
+.sl{ font-family:'Nunito',sans-serif; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--t3); }
+.pn{ font-family:'Nunito',sans-serif; font-weight:800; font-size:28px; background:linear-gradient(135deg, #fff, var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.pc{ font-family:'Nunito',sans-serif; font-size:14px; font-weight:600; color:var(--t3); margin-right:4px; }
+.btn-pk{ background:linear-gradient(135deg, var(--pink) 0%, var(--pink2) 100%); box-shadow:0 6px 25px rgba(255,77,140,0.4); color:#fff; border:none; border-radius:14px; padding:12px 26px; cursor:pointer; font-family:'Nunito',sans-serif; font-weight:700; font-size:14px; transition:all 0.25s; display:inline-flex; align-items:center; gap:8px; position:relative; overflow:hidden; }
+.btn-pk:hover{ transform:translateY(-3px); box-shadow:0 10px 35px rgba(255,77,140,0.6); }
 .btn-pk:active{transform:translateY(-1px);}
-
-.btn-gh{
-  background:rgba(15,22,34,0.8);
-  border:1px solid rgba(255,255,255,0.1);
-  color:var(--t2);
-  border-radius:12px;
-  padding:10px 20px;
-  cursor:pointer;
-  font-family:'Inter',sans-serif;
-  font-weight:600;
-  font-size:13px;
-  transition:all 0.25s;
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-}
-.btn-gh:hover{
-  background:rgba(255,77,140,0.1);
-  border-color:rgba(255,77,140,0.35);
-  color:var(--pink);
-}
-.btn-gh.on{
-  background:rgba(255,77,140,0.12);
-  border-color:rgba(255,77,140,0.4);
-  color:var(--pink);
-}
-
-.btn-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 14px;
-  background: rgba(15,22,34,0.6);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: var(--t2);
-  cursor: pointer;
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.25s;
-}
-.btn-back:hover {
-  background: rgba(255,77,140,0.1);
-  border-color: rgba(255,77,140,0.3);
-  color: var(--pink);
-}
-
-/* Filter Panel */
-.fp{
-  background:linear-gradient(135deg, rgba(10,15,26,0.95), rgba(3,5,11,0.98));
-  border:1px solid rgba(255,77,140,0.15);
-  border-radius:28px;
-  box-shadow:0 30px 60px rgba(0,0,0,0.5);
-  padding:32px;
-  backdrop-filter:blur(16px);
-}
-
-/* Active Filter Area */
-.active-area{
-  background:linear-gradient(135deg, rgba(255,77,140,0.05), rgba(45,212,191,0.03));
-  border:1px solid rgba(255,77,140,0.2);
-  border-radius:20px;
-  padding:24px;
-  margin-bottom:32px;
-}
-
-/* Active Filter Tag - Larger with Better Images */
-.atag{
-  display:inline-flex;
-  align-items:center;
-  gap:0;
-  border-radius:60px;
-  font-size:13px;
-  font-weight:600;
-  overflow:hidden;
-  transition:all 0.25s;
-  flex-shrink:0;
-  background:rgba(15,22,34,0.8);
-  border:1px solid rgba(255,77,140,0.25);
-}
-.atag:hover{
-  transform:translateY(-2px);
-  box-shadow:0 8px 25px rgba(255,77,140,0.2);
-}
-.atag-img{
-  width:52px;
-  height:52px;
-  flex-shrink:0;
-  position:relative;
-  overflow:hidden;
-  background:linear-gradient(135deg, rgba(255,77,140,0.2), rgba(45,212,191,0.1));
-}
+.btn-gh{ background:rgba(15,22,34,0.8); border:1px solid rgba(255,255,255,0.1); color:var(--t2); border-radius:12px; padding:10px 20px; cursor:pointer; font-family:'Nunito',sans-serif; font-weight:600; font-size:13px; transition:all 0.25s; display:inline-flex; align-items:center; gap:8px; }
+.btn-gh:hover{ background:rgba(255,77,140,0.1); border-color:rgba(255,77,140,0.35); color:var(--pink); }
+.btn-gh.on{ background:rgba(255,77,140,0.12); border-color:rgba(255,77,140,0.4); color:var(--pink); }
+.btn-back { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 14px; background: rgba(15,22,34,0.6); border: 1px solid rgba(255,255,255,0.08); color: var(--t2); cursor: pointer; font-family: 'Nunito', sans-serif; font-weight: 600; font-size: 14px; transition: all 0.25s; }
+.btn-back:hover { background: rgba(255,77,140,0.1); border-color: rgba(255,77,140,0.3); color: var(--pink); }
+.fp{ background:linear-gradient(135deg, rgba(10,15,26,0.95), rgba(3,5,11,0.98)); border:1px solid rgba(255,77,140,0.15); border-radius:28px; box-shadow:0 30px 60px rgba(0,0,0,0.5); padding:32px; backdrop-filter:blur(16px); }
+.active-area{ background:linear-gradient(135deg, rgba(255,77,140,0.05), rgba(45,212,191,0.03)); border:1px solid rgba(255,77,140,0.2); border-radius:20px; padding:24px; margin-bottom:32px; }
+.atag{ display:inline-flex; align-items:center; gap:0; border-radius:60px; font-size:13px; font-weight:600; overflow:hidden; transition:all 0.25s; flex-shrink:0; background:rgba(15,22,34,0.8); border:1px solid rgba(255,77,140,0.25); }
+.atag:hover{ transform:translateY(-2px); box-shadow:0 8px 25px rgba(255,77,140,0.2); }
+.atag-img{ width:52px; height:52px; flex-shrink:0; position:relative; overflow:hidden; background:linear-gradient(135deg, rgba(255,77,140,0.2), rgba(45,212,191,0.1)); }
 .atag-img img{width:100%;height:100%;object-fit:cover;}
-.atag-info{
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  padding:0 14px;
-  gap:4px;
-}
-.atag-name{
-  font-family:'Inter',sans-serif;
-  font-size:14px;
-  font-weight:700;
-  color:var(--t1);
-  max-width:100px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
+.atag-info{ display:flex; flex-direction:column; justify-content:center; padding:0 14px; gap:4px; }
+.atag-name{ font-family:'Nunito',sans-serif; font-size:14px; font-weight:700; color:var(--t1); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .atag-rarity{font-size:10px;line-height:1;}
-.atag-qty{
-  display:flex;
-  align-items:center;
-  background:rgba(0,0,0,0.3);
-  border-left:1px solid rgba(255,255,255,0.1);
-  padding:0 10px;
-  height:100%;
-}
+.atag-qty{ display:flex; align-items:center; background:rgba(0,0,0,0.3); border-left:1px solid rgba(255,255,255,0.1); padding:0 10px; height:100%; }
 .qrow{display:flex;align-items:center;gap:8px;}
-.qbtn{
-  width:28px;
-  height:28px;
-  border-radius:30px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  transition:all 0.15s;
-  background:rgba(255,255,255,0.08);
-  border:1px solid rgba(255,255,255,0.1);
-}
+.qbtn{ width:28px; height:28px; border-radius:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); }
 .qbtn:hover{background:rgba(255,255,255,0.18);}
-.qnum{
-  font-family:'Space Grotesk',sans-serif;
-  font-weight:700;
-  font-size:16px;
-  min-width:28px;
-  text-align:center;
-  color:white;
-}
-.atag-rm{
-  width:40px;
-  height:100%;
-  align-self:stretch;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  transition:all 0.15s;
-  background:rgba(255,255,255,0.03);
-  border-left:1px solid rgba(255,255,255,0.08);
-}
+.qnum{ font-family:'Nunito',sans-serif; font-weight:700; font-size:16px; min-width:28px; text-align:center; color:white; }
+.atag-rm{ width:40px; height:100%; align-self:stretch; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; background:rgba(255,255,255,0.03); border-left:1px solid rgba(255,255,255,0.08); }
 .atag-rm:hover{background:rgba(255,100,100,0.2);}
-
-/* Portrait Cards - Larger for Better Visibility */
-.pcard{
-  position:relative;
-  border-radius:16px;
-  overflow:hidden;
-  cursor:pointer;
-  border:2px solid rgba(255,255,255,0.08);
-  transition:all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-  background:linear-gradient(135deg, var(--bg3), var(--bg2));
-  aspect-ratio:2/3;
-  display:flex;
-  flex-direction:column;
-}
-.pcard:hover{
-  border-color:rgba(255,77,140,0.5);
-  transform:translateY(-8px) scale(1.02);
-  box-shadow:0 20px 40px rgba(0,0,0,0.4);
-}
-.pcard.sel{
-  border-color:var(--pink);
-  box-shadow:0 0 0 3px rgba(255,77,140,0.3);
-}
-.pcard.sel-w{
-  border-color:var(--cyan);
-  box-shadow:0 0 0 3px rgba(45,212,191,0.3);
-}
+.pcard{ position:relative; border-radius:16px; overflow:hidden; cursor:pointer; border:2px solid rgba(255,255,255,0.08); transition:all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1); background:linear-gradient(135deg, var(--bg3), var(--bg2)); aspect-ratio:2/3; display:flex; flex-direction:column; }
+.pcard:hover{ border-color:rgba(255,77,140,0.5); transform:translateY(-8px) scale(1.02); box-shadow:0 20px 40px rgba(0,0,0,0.4); }
+.pcard.sel{ border-color:var(--pink); box-shadow:0 0 0 3px rgba(255,77,140,0.3); }
+.pcard.sel-w{ border-color:var(--cyan); box-shadow:0 0 0 3px rgba(45,212,191,0.3); }
 .pcard-art{flex:1;position:relative;overflow:hidden;}
 .pcard-art img{width:100%;height:100%;object-fit:cover;object-position:center;transition:transform 0.35s ease;}
 .pcard:hover .pcard-art img{transform:scale(1.1);}
-.pcard-ph{
-  width:100%;
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:linear-gradient(135deg, rgba(255,77,140,0.1), rgba(45,212,191,0.05));
-}
-.pcard-foot{
-  padding:12px 10px 14px;
-  background:linear-gradient(135deg, rgba(3,5,11,0.9), rgba(3,5,11,0.8));
-  border-top:1px solid rgba(255,255,255,0.05);
-}
-.pcard-nm{
-  font-family:'Inter',sans-serif;
-  font-size:12px;
-  font-weight:700;
-  color:var(--t1);
-  text-align:center;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+.pcard-ph{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, rgba(255,77,140,0.1), rgba(45,212,191,0.05)); }
+.pcard-foot{ padding:12px 10px 14px; background:linear-gradient(135deg, rgba(3,5,11,0.9), rgba(3,5,11,0.8)); border-top:1px solid rgba(255,255,255,0.05); }
+.pcard-nm{ font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; color:var(--t1); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pcard-star{text-align:center;font-size:10px;margin-top:4px;}
-.ptick{
-  position:absolute;
-  top:10px;
-  right:10px;
-  z-index:10;
-  border-radius:50%;
-  width:28px;
-  height:28px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:var(--pink);
-  box-shadow:0 0 20px rgba(255,77,140,0.6);
-}
-
-/* Portrait Scroll */
-.pscroll{
-  background:rgba(3,5,11,0.5);
-  border:1px solid rgba(255,255,255,0.05);
-  border-radius:20px;
-  padding:16px;
-  overflow-y:auto;
-  max-height:360px;
-}
-.pgrid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(95px,1fr));
-  gap:14px;
-}
-
-/* Search Box */
-.sbox{
-  background:rgba(15,22,34,0.9);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:14px;
-  color:var(--t1);
-  transition:all 0.25s;
-  padding:12px 18px 12px 44px;
-  font-size:14px;
-  font-family:'Inter',sans-serif;
-}
-.sbox:focus{
-  border-color:rgba(255,77,140,0.4);
-  box-shadow:0 0 0 3px rgba(255,77,140,0.1);
-  outline:none;
-  background:rgba(15,22,34,1);
-}
+.ptick{ position:absolute; top:10px; right:10px; z-index:10; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; background:var(--pink); box-shadow:0 0 20px rgba(255,77,140,0.6); }
+.pscroll{ background:rgba(3,5,11,0.5); border:1px solid rgba(255,255,255,0.05); border-radius:20px; padding:16px; overflow-y:auto; max-height:360px; }
+.pgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(95px,1fr)); gap:14px; }
+.sbox{ background:rgba(15,22,34,0.9); border:1px solid rgba(255,255,255,0.08); border-radius:14px; color:var(--t1); transition:all 0.25s; padding:12px 18px 12px 44px; font-size:14px; font-family:'Inter',sans-serif; }
+.sbox:focus{ border-color:rgba(255,77,140,0.4); box-shadow:0 0 0 3px rgba(255,77,140,0.1); outline:none; background:rgba(15,22,34,1); }
 .sbox::placeholder{color:var(--t3);}
-
-/* Empty State */
-.ebox{
-  border:2px dashed rgba(255,77,140,0.2);
-  border-radius:32px;
-  background:radial-gradient(ellipse at center, rgba(255,77,140,0.05), transparent 70%);
-  text-align:center;
-  padding:100px 40px;
-}
-
-/* Pagination */
-.pg-b{
-  width:48px;
-  height:48px;
-  border-radius:14px;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(15,22,34,0.9);
-  border:1px solid rgba(255,255,255,0.08);
-  color:var(--t2);
-  transition:all 0.2s;
-}
-.pg-b:hover:not(:disabled){
-  border-color:rgba(255,77,140,0.4);
-  color:var(--pink);
-}
+.ebox{ border:2px dashed rgba(255,77,140,0.2); border-radius:32px; background:radial-gradient(ellipse at center, rgba(255,77,140,0.05), transparent 70%); text-align:center; padding:100px 40px; }
+.pg-b{ width:48px; height:48px; border-radius:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; background:rgba(15,22,34,0.9); border:1px solid rgba(255,255,255,0.08); color:var(--t2); transition:all 0.2s; }
+.pg-b:hover:not(:disabled){ border-color:rgba(255,77,140,0.4); color:var(--pink); }
 .pg-b:disabled{opacity:0.3;cursor:not-allowed;}
-
-/* Section Header */
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 28px;
-}
-
-/* Responsive Game Cards */
-@media (max-width: 768px) {
-  .nav-inner{
-    padding:0 20px;
-    height:60px;
-  }
-  .gc{
-    height:150px;
-  }
-  .gc-icon{
-    width:70px;
-    height:70px;
-    border-radius:18px;
-  }
-  .gc-name{
-    font-size:20px;
-  }
-  .gc-body{
-    gap:16px;
-    padding:0 20px;
-  }
-  .pgrid{
-    grid-template-columns:repeat(auto-fill,minmax(80px,1fr));
-    gap:10px;
-  }
-  .pcard-foot{
-    padding:8px 6px 10px;
-  }
-  .pcard-nm{
-    font-size:10px;
-  }
-  .fp{
-    padding:20px;
-  }
-  .atag-img{
-    width:44px;
-    height:44px;
-  }
-  .atag-name{
-    font-size:12px;
-    max-width:80px;
-  }
-  .main-container {
-    padding: 0 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .gc-body{
-    gap:12px;
-    padding:0 16px;
-  }
-  .gc-icon{
-    width:56px;
-    height:56px;
-    border-radius:14px;
-  }
-  .gc-name{
-    font-size:17px;
-  }
-  .pn{
-    font-size:22px;
-  }
-  .ac:hover{
-    transform:translateY(-3px);
-  }
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255,77,140,0.3);
-  border-radius: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+@media (max-width: 768px) { .nav-inner{ padding:0 20px; height:60px; } .gc{ height:150px; } .gc-icon{ width:70px; height:70px; border-radius:18px; } .gc-name{ font-size:20px; } .gc-body{ gap:16px; padding:0 20px; } .pgrid{ grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); gap:10px; } .pcard-foot{ padding:8px 6px 10px; } .pcard-nm{ font-size:10px; } .fp{ padding:20px; } .atag-img{ width:44px; height:44px; } .atag-name{ font-size:12px; max-width:80px; } .main-container { padding: 0 20px; } }
+@media (max-width: 480px) { .gc-body{ gap:12px; padding:0 16px; } .gc-icon{ width:56px; height:56px; border-radius:14px; } .gc-name{ font-size:17px; } .pn{ font-size:22px; } .ac:hover{ transform:translateY(-3px); } }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(255,77,140,0.3); border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 `;
 
-// ── Navbar ──────────────────────────────────────────────────────────
 function Navbar({ session }: { session: unknown }) {
   const us = session as { user?: { name?: string } } | null;
   return (
@@ -1111,7 +403,6 @@ function Footer() {
   );
 }
 
-// ── Portrait Card (filter) ──────────────────────────────────────────
 function PortraitCard({
   name,
   imageUrl,
@@ -1174,7 +465,6 @@ function PortraitCard({
   );
 }
 
-// ── Active Filter Tag ───────────────────────────────────────────
 function ActiveFilterTag({
   name,
   imageUrl,
@@ -1268,8 +558,6 @@ function ActiveFilterTag({
   );
 }
 
-// ── Account Card - Enhanced with Larger Images ────────────────────────────────────
-// PERBAIKAN: Menggunakan icon Crown, Gem, Trophy, Compass yang sudah di-import
 function AccountCard({
   account,
   onCopy,
@@ -1278,219 +566,372 @@ function AccountCard({
   onCopy: (id: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [copiedDesc, setCopiedDesc] = useState(false);
+  const [shuffleKey, setShuffleKey] = useState(0);
+
+  const descriptionText = useMemo(() => {
+    let text = `Detail Akun ${account.game.name}\n`;
+    text += `=============================\n`;
+    text += `ID: ${account.publicId}\n`;
+    text += `Level: ${account.level || 1}\n`;
+    text += `Diamond: ${account.diamond.toLocaleString()}\n`;
+    if (account.server) text += `Server: ${account.server.name}\n`;
+    if (account.gender) text += `Gender: ${account.gender}\n`;
+
+    if (account.characters && account.characters.length > 0) {
+      text += `\n--- Characters  ---\n`;
+      const shuffledChars = shuffleArray(account.characters);
+      shuffledChars.forEach((c) => {
+        if (c.rarity < 1) {
+          text += `- ${c.name} ${c.quantity && c.quantity > 1 ? ` x ${c.quantity}` : ""}\n`;
+        } else {
+          text += `- ${c.name} (${c.rarity}★)${c.quantity && c.quantity > 1 ? ` x ${c.quantity}` : ""}\n`;
+        }
+      });
+    }
+
+    if (account.weapons && account.weapons.length > 0) {
+      text += `\n--- Weapons ---\n`;
+      const shuffledWeps = shuffleArray(account.weapons);
+      shuffledWeps.forEach((w) => {
+        if (w.rarity < 1) {
+          text += `- ${w.name} ${w.quantity && w.quantity > 1 ? ` x ${w.quantity}` : ""}\n`;
+        } else {
+          text += `- ${w.name} (${w.rarity}★) ${w.quantity && w.quantity > 1 ? ` x ${w.quantity}` : ""}\n`;
+        }
+      });
+    }
+    return text;
+  }, [account, shuffleKey]);
+
+  const handleCopyDesc = async () => {
+    await navigator.clipboard.writeText(descriptionText);
+    setCopiedDesc(true);
+    toast.success("Deskripsi disalin!", {
+      description: "Teks detail akun berhasil disalin.",
+    });
+    setTimeout(() => setCopiedDesc(false), 2000);
+  };
+
+  const handleRegenerate = () => setShuffleKey((prev) => prev + 1);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.3 }}
-      className="ac"
-    >
-      {/* Header with ID */}
-      <div
-        style={{
-          padding: "18px 22px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: "1px solid rgba(255,255,255,0.05)",
-          background:
-            "linear-gradient(135deg, rgba(255,77,140,0.05), transparent)",
-        }}
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -6 }}
+        transition={{ duration: 0.3 }}
+        className="ac"
       >
-        <div className="flex items-center gap-3">
-          <Crown size={16} style={{ color: "var(--pink)" }} />
-          <span
-            className="ff-body font-bold text-sm tracking-wide"
-            style={{ color: "var(--pink)" }}
-          >
-            {account.publicId}
-          </span>
-        </div>
-        <button
-          onClick={() => {
-            onCopy(account.publicId);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          className="transition-all duration-200 hover:scale-110"
+        <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 12,
+            padding: "18px 22px",
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
-            justifyContent: "center",
-            background: copied
-              ? "rgba(255,77,140,0.15)"
-              : "rgba(255,255,255,0.05)",
-            border: `1px solid ${
-              copied ? "rgba(255,77,140,0.3)" : "rgba(255,255,255,0.08)"
-            }`,
+            borderBottom: "1px solid rgba(255,255,255,0.05)",
+            background:
+              "linear-gradient(135deg, rgba(255,77,140,0.05), transparent)",
           }}
         >
-          {copied ? (
-            <Check size={14} style={{ color: "var(--pink)" }} />
-          ) : (
-            <Copy size={14} style={{ color: "var(--t3)" }} />
-          )}
-        </button>
-      </div>
-
-      {/* Body with Stats */}
-      <div
-        style={{
-          padding: "22px",
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: 18,
-        }}
-      >
-        {/* Stats Row */}
-        <div className="flex flex-wrap gap-3">
-          <div className="sp sp-lv">
-            <Shield size={14} /> LV {account.level || 1}
+          <div className="flex items-center gap-3">
+            <Crown size={16} style={{ color: "var(--pink)" }} />
+            <span
+              className="ff-body font-bold text-sm tracking-wide"
+              style={{ color: "var(--pink)" }}
+            >
+              {account.publicId}
+            </span>
           </div>
-          <div className="sp sp-gm">
-            <Gem size={14} /> {account.diamond.toLocaleString()}
-          </div>
-          {account.server && (
-            <div className="sp sp-sv">
-              <Compass size={12} /> {account.server.name}
-            </div>
-          )}
+          <button
+            onClick={() => {
+              onCopy(account.publicId);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="transition-all duration-200 hover:scale-110"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: copied
+                ? "rgba(255,77,140,0.15)"
+                : "rgba(255,255,255,0.05)",
+              border: `1px solid ${copied ? "rgba(255,77,140,0.3)" : "rgba(255,255,255,0.08)"}`,
+            }}
+          >
+            {copied ? (
+              <Check size={14} style={{ color: "var(--pink)" }} />
+            ) : (
+              <Copy size={14} style={{ color: "var(--t3)" }} />
+            )}
+          </button>
         </div>
-
-        {/* Characters */}
-        {account.characters && account.characters.length > 0 && (
-          <div>
-            <div className="sl flex items-center gap-2 mb-3">
-              <Users size={12} /> Characters (
-              {account.characters.reduce((s, c) => s + (c.quantity || 1), 0)})
+        <div
+          style={{
+            padding: "22px",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 18,
+          }}
+        >
+          <div className="flex flex-wrap gap-3">
+            <div className="sp sp-lv">
+              <Shield size={14} /> LV {account.level || 1}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {account.characters.slice(0, 6).map((c, i) => (
-                <div
-                  key={i}
-                  className={cn("mini-card", c.rarity === 5 ? "r5" : "r4")}
-                >
-                  <div
-                    className="mini-card-img"
-                    style={{ position: "relative" }}
-                  >
-                    {c.imageUrl ? (
-                      <img src={c.imageUrl} alt={c.name} />
-                    ) : (
-                      <Star
-                        size={24}
-                        color={
-                          c.rarity === 5 ? "var(--amber)" : "var(--purple)"
-                        }
-                      />
-                    )}
-                    {c.quantity && c.quantity > 1 && (
-                      <span className="mini-qty">×{c.quantity}</span>
-                    )}
-                  </div>
-                  <div className="mini-card-foot">
-                    <div className="mini-card-name">{c.name}</div>
-                    <div
-                      className="mini-card-stars"
-                      style={{
-                        color:
-                          c.rarity === 5 ? "var(--amber)" : "var(--purple)",
-                      }}
-                    >
-                      {"★".repeat(c.rarity)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {account.characters.length > 6 && (
-                <div className="mini-card-more">
-                  +{account.characters.length - 6}
-                </div>
-              )}
+            <div className="sp sp-gm">
+              <Gem size={14} /> {account.diamond.toLocaleString()}
             </div>
+            {account.server && (
+              <div className="sp sp-sv">
+                <Compass size={12} /> {account.server.name}
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Weapons */}
-        {account.weapons && account.weapons.length > 0 && (
-          <div>
-            <div className="sl flex items-center gap-2 mb-3">
-              <Trophy size={12} /> Weapons (
-              {account.weapons.reduce((s, w) => s + (w.quantity || 1), 0)})
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {account.weapons.slice(0, 5).map((w, i) => (
-                <div
-                  key={i}
-                  className={cn("mini-card", w.rarity === 5 ? "r5" : "r4")}
-                >
-                  <div
-                    className="mini-card-img wep"
-                    style={{ position: "relative" }}
-                  >
-                    {w.imageUrl ? (
-                      <img src={w.imageUrl} alt={w.name} />
-                    ) : (
-                      <Sword
-                        size={24}
-                        color={
-                          w.rarity === 5 ? "var(--amber)" : "var(--purple)"
-                        }
-                      />
-                    )}
-                    {w.quantity && w.quantity > 1 && (
-                      <span className="mini-qty">×{w.quantity}</span>
-                    )}
-                  </div>
-                  <div className="mini-card-foot">
-                    <div className="mini-card-name">{w.name}</div>
-                    <div
-                      className="mini-card-stars"
-                      style={{
-                        color:
-                          w.rarity === 5 ? "var(--amber)" : "var(--purple)",
-                      }}
-                    >
-                      {"★".repeat(w.rarity)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {account.weapons.length > 5 && (
-                <div className="mini-card-more">
-                  +{account.weapons.length - 5}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Price + Detail */}
-        <div className="pt-5 border-t border-white/5 flex items-center justify-between mt-auto">
-          <div>
-            <div className="sl mb-2">Harga</div>
+          {account.characters && account.characters.length > 0 && (
             <div>
-              <span className="pc">Rp</span>
-              <span className="pn">{account.basePrice.toLocaleString()}</span>
+              <div className="sl flex items-center gap-2 mb-3">
+                <Users size={12} /> Characters (
+                {account.characters.reduce((s, c) => s + (c.quantity || 1), 0)})
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {account.characters.slice(0, 6).map((c, i) => (
+                  <div
+                    key={i}
+                    className={cn("mini-card", c.rarity === 5 ? "r5" : "r4")}
+                  >
+                    <div
+                      className="mini-card-img"
+                      style={{ position: "relative" }}
+                    >
+                      {c.imageUrl ? (
+                        <img src={c.imageUrl} alt={c.name} />
+                      ) : (
+                        <Star
+                          size={24}
+                          color={
+                            c.rarity === 5 ? "var(--amber)" : "var(--purple)"
+                          }
+                        />
+                      )}
+                      {c.quantity && c.quantity > 1 && (
+                        <span className="mini-qty">×{c.quantity}</span>
+                      )}
+                    </div>
+                    <div className="mini-card-foot">
+                      <div className="mini-card-name">{c.name}</div>
+                      <div
+                        className="mini-card-stars"
+                        style={{
+                          color:
+                            c.rarity === 5 ? "var(--amber)" : "var(--purple)",
+                        }}
+                      >
+                        {"★".repeat(c.rarity)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {account.characters.length > 6 && (
+                  <div className="mini-card-more">
+                    +{account.characters.length - 6}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          {/* <Link href={`/catalog/${account.publicId}`}>
-            <button className="btn-pk">
-              <Zap size={15} /> Detail
+          )}
+          {account.weapons && account.weapons.length > 0 && (
+            <div>
+              <div className="sl flex items-center gap-2 mb-3">
+                <Trophy size={12} /> Weapons (
+                {account.weapons.reduce((s, w) => s + (w.quantity || 1), 0)})
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {account.weapons.slice(0, 5).map((w, i) => (
+                  <div
+                    key={i}
+                    className={cn("mini-card", w.rarity === 5 ? "r5" : "r4")}
+                  >
+                    <div
+                      className="mini-card-img wep"
+                      style={{ position: "relative" }}
+                    >
+                      {w.imageUrl ? (
+                        <img src={w.imageUrl} alt={w.name} />
+                      ) : (
+                        <Sword
+                          size={24}
+                          color={
+                            w.rarity === 5 ? "var(--amber)" : "var(--purple)"
+                          }
+                        />
+                      )}
+                      {w.quantity && w.quantity > 1 && (
+                        <span className="mini-qty">×{w.quantity}</span>
+                      )}
+                    </div>
+                    <div className="mini-card-foot">
+                      <div className="mini-card-name">{w.name}</div>
+                      <div
+                        className="mini-card-stars"
+                        style={{
+                          color:
+                            w.rarity === 5 ? "var(--amber)" : "var(--purple)",
+                        }}
+                      >
+                        {"★".repeat(w.rarity)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {account.weapons.length > 5 && (
+                  <div className="mini-card-more">
+                    +{account.weapons.length - 5}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="pt-5 border-t border-white/5 flex items-center justify-between mt-auto">
+            <div className="sl mb-2">Description</div>
+            <button className="btn-pk" onClick={() => setShowModal(true)}>
+              Detail
             </button>
-          </Link> */}
+          </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{
+              background: "rgba(0,0,0,0.8)",
+              backdropFilter: "blur(8px)",
+            }}
+            onClick={() => setShowModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-lg overflow-hidden rounded-3xl"
+              style={{
+                background: "linear-gradient(135deg, var(--bg2), var(--bg))",
+                border: "1px solid rgba(255,77,140,0.2)",
+                boxShadow:
+                  "0 25px 50px rgba(0,0,0,0.5), 0 0 100px rgba(255,77,140,0.1)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                className="flex items-center justify-between p-6"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex items-center justify-center rounded-xl"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      background: "rgba(255,77,140,0.1)",
+                      border: "1px solid rgba(255,77,140,0.2)",
+                    }}
+                  >
+                    <FileText size={20} style={{ color: "var(--pink)" }} />
+                  </div>
+                  <div>
+                    <h3 className="ff-title text-lg font-bold">
+                      Detail Deskripsi
+                    </h3>
+                    <p className="text-xs" style={{ color: "var(--t3)" }}>
+                      ID: {account.publicId}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="transition-all duration-200 hover:rotate-90"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    color: "var(--t3)",
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-6">
+                <div
+                  className="w-full rounded-2xl p-5 text-sm leading-relaxed"
+                  style={{
+                    background: "rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    color: "var(--t2)",
+                    fontFamily: "monospace",
+                    whiteSpace: "pre-wrap",
+                    maxHeight: "50vh",
+                    overflowY: "auto",
+                  }}
+                >
+                  {descriptionText}
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-between gap-3 p-6 pt-0">
+                <button
+                  onClick={handleRegenerate}
+                  className="btn-gh w-full sm:w-auto justify-center"
+                >
+                  <RefreshCw size={16} /> Acak Urutan
+                </button>
+                <div className="flex gap-3 w-full sm:w-auto">
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="btn-gh flex-1 justify-center"
+                  >
+                    Tutup
+                  </button>
+                  <button
+                    onClick={handleCopyDesc}
+                    className="btn-pk flex-1 justify-center"
+                  >
+                    {copiedDesc ? (
+                      <>
+                        <Check size={16} /> Tersalin
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} /> Salin
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
-// ── Main ─────────────────────────────────────────────────────────────
+// ── Main Component ─────────────────────────────────────────────────────
 export default function LandingPage() {
   const { data: session } = useSession();
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
@@ -1508,6 +949,9 @@ export default function LandingPage() {
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
+  // State untuk menyimpan jumlah akun tersedia per game (ID -> Count)
+  const [gameCounts, setGameCounts] = useState<Record<string, number>>({});
+
   const { data: gamesData, isLoading: isLoadingGames } = useQuery({
     queryKey: ["games-public"],
     queryFn: async () => {
@@ -1516,6 +960,36 @@ export default function LandingPage() {
       return Array.isArray(j) ? { games: j } : j;
     },
   });
+
+  // Effect untuk mengambil jumlah akun tersedia saat data game dimuat
+  useEffect(() => {
+    if (gamesData?.games) {
+      const fetchCounts = async () => {
+        const activeGames = gamesData.games.filter((g: Game) => g.status);
+        const counts: Record<string, number> = {};
+
+        // Fetch semua jumlah akun secara paralel
+        const promises = activeGames.map(async (game: Game) => {
+          try {
+            // Limit 1 hanya untuk mendapatkan total pagination (data yang sebenarnya tidak dipakai)
+            const res = await fetch(
+              `/api/accounts/front?gameId=${game.id}&limit=1`,
+            );
+            const data = await res.json();
+            counts[game.id] = data.pagination?.total || 0;
+          } catch (error) {
+            counts[game.id] = 0;
+          }
+        });
+
+        await Promise.all(promises);
+        setGameCounts(counts);
+      };
+
+      fetchCounts();
+    }
+  }, [gamesData]);
+
   const { data: serversData } = useQuery({
     queryKey: ["servers", selectedGame?.id],
     queryFn: async () => {
@@ -1540,6 +1014,7 @@ export default function LandingPage() {
     },
     enabled: !!selectedGame,
   });
+
   const { data: accountsData, isLoading: isLoadingAccounts } = useQuery({
     queryKey: ["accounts-public", selectedGame?.id, page, searchQuery, filters],
     queryFn: async () => {
@@ -1569,7 +1044,7 @@ export default function LandingPage() {
           "weapons",
           filters.weapons.map((w) => `${w.id}:${w.quantity}`).join(","),
         );
-      return (await fetch(`/api/accounts?${p}`)).json();
+      return (await fetch(`/api/accounts/front?${p}`)).json();
     },
     enabled: !!selectedGame,
   });
@@ -1615,7 +1090,6 @@ export default function LandingPage() {
   const hasWeps = !!weaponsData?.weapons?.length;
   const activeCount = filters.characters.length + filters.weapons.length;
 
-  // ── VIEW 1: GAME SELECTION ──────────────────────────────────────
   if (!selectedGame)
     return (
       <div
@@ -1659,7 +1133,6 @@ export default function LandingPage() {
                 <Sparkles size={14} /> Accounts Marketplace
               </div>
             </motion.div>
-
             <motion.h1
               className="hero-title"
               initial={{ opacity: 0, y: 30 }}
@@ -1678,16 +1151,6 @@ export default function LandingPage() {
                 Impianmu
               </span>
             </motion.h1>
-
-            {/* <motion.p
-              className="hero-subtitle"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-            >
-              Jelajahi ribuan akun premium dengan karakter dan senjata langka
-              dari berbagai game populer
-            </motion.p> */}
           </div>
 
           <div className="section-header">
@@ -1780,9 +1243,16 @@ export default function LandingPage() {
                         <div className="gc-meta">
                           <div className="gc-code">{game.code}</div>
                           <div className="gc-name">{game.name}</div>
+                          {/* BAGIAN YANG DIUBAH: Menampilkan jumlah dinamis */}
                           <div className="gc-cnt">
-                            <Users size={12} /> {game._count?.accounts || 0}{" "}
-                            Akun Tersedia
+                            <Users size={12} />
+                            {gameCounts[game.id] !== undefined ? (
+                              <>{gameCounts[game.id]} Akun Tersedia</>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <Loader2 className="animate-spin" size={12} />
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1796,7 +1266,6 @@ export default function LandingPage() {
       </div>
     );
 
-  // ── VIEW 2: CATALOG ─────────────────────────────────────────────
   return (
     <div
       className="page-bg"
@@ -1826,7 +1295,6 @@ export default function LandingPage() {
         }}
       >
         <div className="flex flex-col gap-8">
-          {/* Header */}
           <div className="flex flex-wrap items-center justify-between gap-5">
             <div className="flex items-center gap-5">
               <motion.button
@@ -1869,7 +1337,9 @@ export default function LandingPage() {
                     {selectedGame.name}
                   </h2>
                   <p style={{ color: "var(--t3)", fontSize: 13, marginTop: 2 }}>
-                    Marketplace Akun Premium
+                    {!isLoadingAccounts && accountsData?.pagination
+                      ? `${accountsData.pagination.total || 0} Akun Tersedia`
+                      : "Memuat data..."}
                   </p>
                 </div>
               </div>
@@ -1925,7 +1395,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Filter Panel */}
           <AnimatePresence>
             {showFilters && (
               <motion.div
@@ -1936,7 +1405,6 @@ export default function LandingPage() {
                 style={{ overflow: "hidden" }}
               >
                 <div className="fp">
-                  {/* Active Filters */}
                   {(filters.characters.length > 0 ||
                     filters.weapons.length > 0) && (
                     <div className="active-area">
@@ -1961,7 +1429,6 @@ export default function LandingPage() {
                           Reset Semua
                         </button>
                       </div>
-
                       {filters.characters.length > 0 && (
                         <div style={{ marginBottom: 20 }}>
                           <div
@@ -2008,7 +1475,6 @@ export default function LandingPage() {
                           </div>
                         </div>
                       )}
-
                       {filters.weapons.length > 0 && (
                         <div>
                           {filters.characters.length > 0 && (
@@ -2068,8 +1534,6 @@ export default function LandingPage() {
                       )}
                     </div>
                   )}
-
-                  {/* Character & Weapon Grids */}
                   {(hasChars || hasWeps) && (
                     <div
                       style={{
@@ -2149,8 +1613,6 @@ export default function LandingPage() {
                       )}
                     </div>
                   )}
-
-                  {/* Additional Filters */}
                   <div
                     style={{
                       display: "grid",
@@ -2204,10 +1666,7 @@ export default function LandingPage() {
                       <Select
                         value={filters.minLevel.toString()}
                         onValueChange={(v) => {
-                          setFilters((p) => ({
-                            ...p,
-                            minLevel: parseInt(v),
-                          }));
+                          setFilters((p) => ({ ...p, minLevel: parseInt(v) }));
                           setPage(1);
                         }}
                       >
@@ -2314,7 +1773,6 @@ export default function LandingPage() {
             )}
           </AnimatePresence>
 
-          {/* Account Grid */}
           {isLoadingAccounts ? (
             <div
               className="flex flex-col items-center justify-center"
@@ -2371,11 +1829,7 @@ export default function LandingPage() {
                   </div>
                   <h3
                     className="ff-display"
-                    style={{
-                      fontSize: 26,
-                      fontWeight: 700,
-                      marginBottom: 12,
-                    }}
+                    style={{ fontSize: 26, fontWeight: 700, marginBottom: 12 }}
                   >
                     Tidak Ada Akun Ditemukan
                   </h3>

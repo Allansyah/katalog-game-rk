@@ -199,14 +199,14 @@ const menuGroups: Record<string, MenuGroup[]> = {
       heading: "Marketplace",
       items: [
         {
-          icon: ShoppingCart,
-          label: "Extract Account",
-          href: "/dashboard/extract",
-        },
-        {
           icon: Eye,
           label: "Tracked Accounts",
           href: "/dashboard/tracked-accounts",
+        },
+        {
+          icon: ShoppingCart,
+          label: "Extract Account",
+          href: "/dashboard/extract",
         },
         {
           icon: KeyRound,
@@ -259,14 +259,14 @@ const menuGroups: Record<string, MenuGroup[]> = {
       heading: "Marketplace",
       items: [
         {
-          icon: ShoppingCart,
-          label: "Extract Account",
-          href: "/dashboard/extract",
-        },
-        {
           icon: Eye,
           label: "Tracked Accounts",
           href: "/dashboard/tracked-accounts",
+        },
+        {
+          icon: ShoppingCart,
+          label: "Extract Account",
+          href: "/dashboard/extract",
         },
         {
           icon: KeyRound,
@@ -322,7 +322,7 @@ function useCollapsedGroups(role: string, groups: MenuGroup[]) {
     }
     // Default: collapse groups where defaultOpen is false
     return new Set(
-      groups.filter((g) => g.defaultOpen === false).map((g) => g.heading)
+      groups.filter((g) => g.defaultOpen === false).map((g) => g.heading),
     );
   });
 
@@ -379,7 +379,7 @@ function SidebarContent({
           const collapsed = isCollapsed(group.heading);
           const hasActiveItem = group.items.some(
             (item) =>
-              pathname === item.href || pathname.startsWith(item.href + "/")
+              pathname === item.href || pathname.startsWith(item.href + "/"),
           );
 
           return (
@@ -401,7 +401,7 @@ function SidebarContent({
               <div
                 className={cn(
                   "overflow-hidden transition-all duration-200 ease-in-out",
-                  collapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100"
+                  collapsed ? "max-h-0 opacity-0" : "max-h-[500px] opacity-100",
                 )}
               >
                 <div className="space-y-1 mt-1">
@@ -418,7 +418,7 @@ function SidebarContent({
                           "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                           isActive
                             ? "bg-emerald-600/20 text-emerald-400"
-                            : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                            : "text-zinc-400 hover:bg-zinc-800 hover:text-white",
                         )}
                       >
                         <item.icon className="h-5 w-5" />
@@ -478,7 +478,7 @@ export function Sidebar({ role }: SidebarProps) {
           // h-screen & sticky top-0 memastikan sidebar selalu setinggi layar dan menempel di atas
           "fixed inset-y-0 left-0 z-40 w-64 transform bg-zinc-900 transition-transform duration-200 ease-in-out",
           "lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:min-h-screen",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <SidebarContent
