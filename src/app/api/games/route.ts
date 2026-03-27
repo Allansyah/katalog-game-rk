@@ -12,12 +12,12 @@ async function saveFile(file: File): Promise<string> {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
-  // Path: public/uploads/master-game
+  // Simpan di public/uploads/master-game
   const uploadDir = path.join(
     process.cwd(),
     "public",
     "uploads",
-    "master-game",
+    "master-game"
   );
 
   // Buat folder jika belum ada
@@ -34,11 +34,11 @@ async function saveFile(file: File): Promise<string> {
   // Tulis file ke disk
   await writeFile(filePath, buffer);
 
-  // Kembalikan path publik untuk disimpan di DB
-  return `/uploads/master-game/${fileName}`;
+  // Kembalikan URL yang mengarah ke API route serving file
+  return `/api/uploads/master-game/${fileName}`;
 }
 
-// GET - List all games (Tidak berubah)
+// GET - List all games
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -117,12 +117,12 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching games:", error);
     return NextResponse.json(
       { error: "Failed to fetch games" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
 
-// POST - Create new game (Diubah untuk menangani FormData & File Upload)
+// POST - Create new game
 export async function POST(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
@@ -130,11 +130,10 @@ export async function POST(request: NextRequest) {
     if (!token || token.role !== Role.SUPER_ADMIN) {
       return NextResponse.json(
         { error: "Unauthorized - Super Admin only" },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
-    // Ubah dari request.json() ke request.formData()
     const formData = await request.formData();
 
     const name = formData.get("name") as string;
@@ -145,7 +144,7 @@ export async function POST(request: NextRequest) {
     if (!name || !code) {
       return NextResponse.json(
         { error: "Game name and code are required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -157,7 +156,7 @@ export async function POST(request: NextRequest) {
     if (existingCode) {
       return NextResponse.json(
         { error: "Game code already exists" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -189,7 +188,7 @@ export async function POST(request: NextRequest) {
           hasIcon: !!iconPath,
         },
       },
-      request,
+      request
     );
 
     return NextResponse.json({ game }, { status: 201 });
@@ -197,9 +196,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating game:", error);
     return NextResponse.json(
       { error: "Failed to create game" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
-
-// PUT di file ini dihapus karena sudah dipindahkan ke [id]/route.ts
