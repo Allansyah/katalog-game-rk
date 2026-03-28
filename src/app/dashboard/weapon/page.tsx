@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -13,6 +13,9 @@ import {
   Sword,
   Upload,
   X,
+  FileUp,
+  Download,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +45,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Weapon {
   id: string;
@@ -59,6 +63,16 @@ interface Game {
   id: string;
   name: string;
   code: string;
+}
+
+interface ImportPreview {
+  name: string;
+  gameCode: string;
+  rarity: string;
+  weaponType: string;
+  element: string;
+  isValid: boolean;
+  errors: string[];
 }
 
 const WEAPON_TYPES = [
@@ -86,6 +100,10 @@ export default function WeaponManagementPage() {
   const [gameFilter, setGameFilter] = useState<string>("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWeapon, setEditingWeapon] = useState<Weapon | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportPreview[]>([]);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     gameId: "",
@@ -101,7 +119,7 @@ export default function WeaponManagementPage() {
   const [isImageRemoved, setIsImageRemoved] = useState(false);
 
   // Fetch games for dropdown
-  const { data: gamesData } = useQuery<{ games: Game[] }>({
+  const { data: gamesData, isLoading: gamesLoading } = useQuery<{ games: Game[] }>({
     queryKey: ["games"],
     queryFn: () => fetch("/api/games").then((res) => res.json()),
   });
@@ -170,6 +188,36 @@ export default function WeaponManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-weapons"] });
       queryClient.invalidateQueries({ queryKey: ["games"] });
       closeModal();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Import mutation
+  const importMutation = useMutation({
+    mutationFn: async (weapons: any[]) => {
+      const res = await fetch("/api/weapons/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ weapons }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to import weapons");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast.success(`Successfully imported ${data.imported} weapons`);
+      if (data.skipped > 0) {
+        toast.warning(`Skipped ${data.skipped} duplicate weapons`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["admin-weapons"] });
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+      closeImportModal();
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -251,6 +299,21 @@ export default function WeaponManagementPage() {
     setIsImageRemoved(false);
   };
 
+  const openImportModal = () => {
+    setIsImportModalOpen(true);
+    setCsvFile(null);
+    setImportPreview([]);
+  };
+
+  const closeImportModal = () => {
+    setIsImportModalOpen(false);
+    setCsvFile(null);
+    setImportPreview([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -284,6 +347,170 @@ export default function WeaponManagementPage() {
     saveMutation.mutate();
   };
 
+  // Parse CSV file
+  const parseCSV = (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const lines = text.split("\n").filter((line) => line.trim());
+
+        if (lines.length < 2) {
+          reject(
+            new Error(
+              "CSV file must contain at least a header row and one data row"
+            )
+          );
+          return;
+        }
+
+        const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+        const requiredColumns = ["name", "gamecode", "rarity", "weapontype", "element"];
+        const missingColumns = requiredColumns.filter(
+          (col) => !headers.includes(col)
+        );
+
+        if (missingColumns.length > 0) {
+          reject(
+            new Error(`Missing required columns: ${missingColumns.join(", ")}`)
+          );
+          return;
+        }
+
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(",").map((v) => v.trim());
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || "";
+          });
+          data.push(row);
+        }
+
+        resolve(data);
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsText(file);
+    });
+  };
+
+  // Validate and preview import data
+  const handleImportFileSelect = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".csv")) {
+      toast.error("Please select a CSV file");
+      return;
+    }
+
+    setCsvFile(file);
+
+    try {
+      const parsedData = await parseCSV(file);
+      const gamesMap = new Map(
+        gamesData?.games?.map((game) => [game.code.toLowerCase(), game]) || []
+      );
+
+      const previewData: ImportPreview[] = parsedData.map((row) => {
+        const errors: string[] = [];
+
+        if (!row.name) errors.push("Name is required");
+
+        const game = gamesMap.get(row.gamecode?.toLowerCase());
+        if (!row.gamecode) {
+          errors.push("Game code is required");
+        } else if (!game) {
+          errors.push(`Game with code "${row.gamecode}" not found`);
+        }
+
+        if (row.rarity && !["1", "2", "3", "4", "5"].includes(row.rarity)) {
+          errors.push("Rarity must be 1-5");
+        }
+
+        if (row.weapontype && !WEAPON_TYPES.includes(row.weapontype)) {
+          errors.push(`Weapon type must be one of: ${WEAPON_TYPES.join(", ")}`);
+        }
+
+        return {
+          name: row.name || "",
+          gameCode: row.gamecode || "",
+          rarity: row.rarity || "",
+          weaponType: row.weapontype || "",
+          element: row.element || "",
+          isValid: errors.length === 0,
+          errors,
+        };
+      });
+
+      setImportPreview(previewData);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to parse CSV file"
+      );
+      setCsvFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  // Download CSV template
+  const downloadTemplate = () => {
+    const headers = ["name", "gameCode", "rarity", "weaponType", "element"];
+    const exampleRows = [
+      ["Mistsplitter Reforged", "genshin", "5", "Sword", "Cryo"],
+      ["Wolf's Gravestone", "genshin", "5", "Claymore", "Pyro"],
+      ["Skyward Harp", "genshin", "5", "Bow", "Anemo"],
+      ["Emerald of Genesis", "wuwa", "5", "Sword", "Spectro"],
+    ];
+
+    const csvContent = [
+      headers.join(","),
+      ...exampleRows.map((row) => row.join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "weapon_import_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success("Template downloaded");
+  };
+
+  // Execute import
+  const handleImport = async () => {
+    const validWeapons = importPreview.filter((item) => item.isValid);
+
+    if (validWeapons.length === 0) {
+      toast.error("No valid weapons to import");
+      return;
+    }
+
+    const weaponsToImport = validWeapons.map((item) => {
+      const game = gamesData?.games?.find(
+        (g) => g.code.toLowerCase() === item.gameCode.toLowerCase()
+      );
+
+      return {
+        name: item.name,
+        gameId: game?.id,
+        rarity: item.rarity ? parseInt(item.rarity) : null,
+        weaponType: item.weaponType || null,
+        element: item.element || null,
+      };
+    });
+
+    importMutation.mutate(weaponsToImport);
+  };
+
   const getRarityColor = (rarity: number | null) => {
     if (rarity === 5) return "text-yellow-400";
     if (rarity === 4) return "text-purple-400";
@@ -311,13 +538,23 @@ export default function WeaponManagementPage() {
           </h1>
           <p className="text-zinc-400">Manage weapons for each game</p>
         </div>
-        <Button
-          onClick={() => openModal()}
-          className="bg-emerald-600 hover:bg-emerald-700"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Weapon
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={openImportModal}
+            variant="outline"
+            className="border-zinc-700 hover:bg-zinc-800"
+          >
+            <FileUp className="mr-2 h-4 w-4" />
+            Import CSV
+          </Button>
+          <Button
+            onClick={() => openModal()}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Weapon
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -465,6 +702,144 @@ export default function WeaponManagementPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Import Modal */}
+      <Dialog open={isImportModalOpen} onOpenChange={closeImportModal}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Import Weapons from CSV
+            </DialogTitle>
+            <DialogDescription>
+              Import multiple weapons at once using a CSV file
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Alert className="bg-blue-950 border-blue-800">
+              <AlertCircle className="h-4 w-4 text-blue-400" />
+              <AlertTitle className="text-blue-400">
+                CSV Format Requirements
+              </AlertTitle>
+              <AlertDescription className="text-blue-300 text-sm">
+                Required columns: name, gameCode, rarity, weaponType, element
+                <br />
+                Game code should match the game code in your system (e.g.,
+                "wuwa" for Wuthering Waves, "genshin" for Genshin Impact)
+                <br />
+                Valid weapon types: {WEAPON_TYPES.join(", ")}
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={downloadTemplate}
+                className="border-zinc-700"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download Template
+              </Button>
+              <div className="flex-1">
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleImportFileSelect}
+                  className="bg-zinc-800 border-zinc-700"
+                />
+              </div>
+            </div>
+
+            {importPreview.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-white font-semibold">
+                    Preview ({importPreview.filter((i) => i.isValid).length}{" "}
+                    valid, {importPreview.filter((i) => !i.isValid).length}{" "}
+                    invalid)
+                  </h3>
+                  <Button
+                    onClick={handleImport}
+                    disabled={
+                      importMutation.isPending ||
+                      importPreview.filter((i) => i.isValid).length === 0
+                    }
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {importMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      "Import Valid Weapons"
+                    )}
+                  </Button>
+                </div>
+
+                <div className="border border-zinc-800 rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-zinc-800">
+                        <TableHead className="text-zinc-400">Status</TableHead>
+                        <TableHead className="text-zinc-400">Name</TableHead>
+                        <TableHead className="text-zinc-400">
+                          Game Code
+                        </TableHead>
+                        <TableHead className="text-zinc-400">Rarity</TableHead>
+                        <TableHead className="text-zinc-400">
+                          Weapon Type
+                        </TableHead>
+                        <TableHead className="text-zinc-400">Element</TableHead>
+                        <TableHead className="text-zinc-400">Errors</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importPreview.map((item, index) => (
+                        <TableRow key={index} className="border-zinc-800">
+                          <TableCell>
+                            {item.isValid ? (
+                              <Badge className="bg-green-600">Valid</Badge>
+                            ) : (
+                              <Badge variant="destructive">Invalid</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-white">
+                            {item.name || "-"}
+                          </TableCell>
+                          <TableCell className="text-white">
+                            {item.gameCode || "-"}
+                          </TableCell>
+                          <TableCell className="text-white">
+                            {item.rarity || "-"}
+                          </TableCell>
+                          <TableCell className="text-white">
+                            {item.weaponType || "-"}
+                          </TableCell>
+                          <TableCell className="text-white">
+                            {item.element || "-"}
+                          </TableCell>
+                          <TableCell>
+                            {item.errors.length > 0 && (
+                              <div className="text-red-400 text-sm">
+                                {item.errors.map((err, i) => (
+                                  <div key={i}>{err}</div>
+                                ))}
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal */}
       <Dialog open={isModalOpen} onOpenChange={closeModal}>

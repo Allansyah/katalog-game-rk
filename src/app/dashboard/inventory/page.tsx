@@ -473,10 +473,10 @@ function AccountFormModal({
         serverId: formData.serverId || null,
         gender: formData.gender || null,
         characterSelections: formData.characterSelections.filter(
-          (c) => c.quantity > 0,
+          (c) => c.quantity > 0
         ),
         weaponSelections: formData.weaponSelections.filter(
-          (w) => w.quantity > 0,
+          (w) => w.quantity > 0
         ),
         basePrice: parseFloat(formData.basePrice),
         credentials: {
@@ -511,12 +511,12 @@ function AccountFormModal({
       toast.success(
         account
           ? "Account updated successfully"
-          : "Account created successfully",
+          : "Account created successfully"
       );
       onSuccess();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to save account",
+        error instanceof Error ? error.message : "Failed to save account"
       );
     } finally {
       setIsLoading(false);
@@ -526,20 +526,20 @@ function AccountFormModal({
   const handleCharacterChange = (characterId: string, quantity: number) => {
     setFormData((prev) => {
       const existing = prev.characterSelections.find(
-        (c) => c.characterId === characterId,
+        (c) => c.characterId === characterId
       );
       if (quantity <= 0) {
         return {
           ...prev,
           characterSelections: prev.characterSelections.filter(
-            (c) => c.characterId !== characterId,
+            (c) => c.characterId !== characterId
           ),
         };
       } else if (existing) {
         return {
           ...prev,
           characterSelections: prev.characterSelections.map((c) =>
-            c.characterId === characterId ? { ...c, quantity } : c,
+            c.characterId === characterId ? { ...c, quantity } : c
           ),
         };
       } else {
@@ -557,20 +557,20 @@ function AccountFormModal({
   const handleWeaponChange = (weaponId: string, quantity: number) => {
     setFormData((prev) => {
       const existing = prev.weaponSelections.find(
-        (w) => w.weaponId === weaponId,
+        (w) => w.weaponId === weaponId
       );
       if (quantity <= 0) {
         return {
           ...prev,
           weaponSelections: prev.weaponSelections.filter(
-            (w) => w.weaponId !== weaponId,
+            (w) => w.weaponId !== weaponId
           ),
         };
       } else if (existing) {
         return {
           ...prev,
           weaponSelections: prev.weaponSelections.map((w) =>
-            w.weaponId === weaponId ? { ...w, quantity } : w,
+            w.weaponId === weaponId ? { ...w, quantity } : w
           ),
         };
       } else {
@@ -705,8 +705,8 @@ function AccountFormModal({
                                   char.rarity === 5
                                     ? "bg-gradient-to-br from-amber-500 to-orange-600"
                                     : char.rarity === 4
-                                      ? "bg-gradient-to-br from-purple-500 to-pink-600"
-                                      : "bg-gradient-to-br from-blue-500 to-cyan-600"
+                                    ? "bg-gradient-to-br from-purple-500 to-pink-600"
+                                    : "bg-gradient-to-br from-blue-500 to-cyan-600"
                                 }`}
                               >
                                 {char.name.charAt(0)}
@@ -728,7 +728,7 @@ function AccountFormModal({
                                 onChange={(e) =>
                                   handleCharacterChange(
                                     char.id,
-                                    parseInt(e.target.value) || 0,
+                                    parseInt(e.target.value) || 0
                                   )
                                 }
                                 className="w-16 h-8 bg-zinc-900 border-zinc-700 text-center shrink-0"
@@ -778,8 +778,8 @@ function AccountFormModal({
                                   weapon.rarity === 5
                                     ? "bg-gradient-to-br from-amber-500 to-orange-600"
                                     : weapon.rarity === 4
-                                      ? "bg-gradient-to-br from-purple-500 to-pink-600"
-                                      : "bg-gradient-to-br from-blue-500 to-cyan-600"
+                                    ? "bg-gradient-to-br from-purple-500 to-pink-600"
+                                    : "bg-gradient-to-br from-blue-500 to-cyan-600"
                                 }`}
                               >
                                 {weapon.name.charAt(0)}
@@ -801,7 +801,7 @@ function AccountFormModal({
                                 onChange={(e) =>
                                   handleWeaponChange(
                                     weapon.id,
-                                    parseInt(e.target.value) || 0,
+                                    parseInt(e.target.value) || 0
                                   )
                                 }
                                 className="w-16 h-8 bg-zinc-900 border-zinc-700 text-center shrink-0"
@@ -1202,7 +1202,7 @@ function ImportCSVModal({
 
     const csvContent = [
       headers.join(","),
-      "1,55,5000,America,Male,Jean|1|5,Dull Blade|1|1,250000,user123,pass123,email@example.com,emailpass",
+      "1,55,5000,America,Male,CharacterName|1,WeaponName|1,250000,user123,pass123,email@example.com,emailpass",
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -1250,15 +1250,15 @@ function ImportCSVModal({
                   .split(",")
                   .map((c: string) => {
                     const parts = c.split("|").map((p) => p.trim());
-                    const [name, quantity, rarity] = parts;
+                    const [name, quantity] = parts;
 
                     const character = selectedGame?.characters.find(
-                      (ch) => ch.name.toLowerCase() === name.toLowerCase(),
+                      (ch) => ch.name.toLowerCase() === name.toLowerCase()
                     );
 
                     if (!character) {
                       console.warn(
-                        `[Row ${rowNumber}] Character "${name}" not found in game database. Skipping.`,
+                        `[Row ${rowNumber}] Character "${name}" not found in game database. Skipping.`
                       );
                       return null;
                     }
@@ -1278,15 +1278,15 @@ function ImportCSVModal({
                   .split(",")
                   .map((w: string) => {
                     const parts = w.split("|").map((p) => p.trim());
-                    const [name, quantity, rarity] = parts;
+                    const [name, quantity] = parts;
 
                     const weapon = selectedGame?.weapons.find(
-                      (wp) => wp.name.toLowerCase() === name.toLowerCase(),
+                      (wp) => wp.name.toLowerCase() === name.toLowerCase()
                     );
 
                     if (!weapon) {
                       console.warn(
-                        `[Row ${rowNumber}] Weapon "${name}" not found in game database. Skipping.`,
+                        `[Row ${rowNumber}] Weapon "${name}" not found in game database. Skipping.`
                       );
                       return null;
                     }
@@ -1304,7 +1304,7 @@ function ImportCSVModal({
             const serverObj = selectedGame?.servers.find(
               (s) =>
                 s.name.toLowerCase() === serverName.toLowerCase() ||
-                s.code?.toLowerCase() === serverName.toLowerCase(),
+                s.code?.toLowerCase() === serverName.toLowerCase()
             );
             const serverId = serverObj ? serverObj.id : null;
 
@@ -1367,7 +1367,7 @@ function ImportCSVModal({
           onSuccess();
         } else {
           toast.error(
-            `Imported ${success.length} accounts, ${failed.length} failed`,
+            `Imported ${success.length} accounts, ${failed.length} failed`
           );
         }
 
