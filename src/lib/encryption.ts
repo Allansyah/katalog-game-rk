@@ -121,9 +121,8 @@ function generateRandomAlphanumeric(length: number): string {
  */
 export function generatePublicId(gameCode: string): string {
   const code = gameCode.toUpperCase().substring(0, 3);
-  const middle = generateRandomAlphanumeric(5);
-  const suffix = generateRandomAlphanumeric(3);
-  return `${code}-${middle}-${suffix}`;
+  const middle = generateRandomAlphanumeric(7);
+  return `${code}-${middle}`;
 }
 
 /**

@@ -1112,7 +1112,7 @@ function ImportCSVModal({
   const [step, setStep] = useState<"upload" | "mapping" | "preview">("upload");
 
   const defaultMapping = {
-    publicId: "", // ID will be ignored during import, handled by API
+    no: "",
     level: "",
     diamond: "",
     server: "",
@@ -1202,7 +1202,7 @@ function ImportCSVModal({
 
     const csvContent = [
       headers.join(","),
-      "IGNORED,55,5000,America,Male,Jean|1|5,Dull Blade|1|1,250000,user123,pass123,email@example.com,emailpass",
+      "1,55,5000,America,Male,Jean|1|5,Dull Blade|1|1,250000,user123,pass123,email@example.com,emailpass",
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -1524,8 +1524,8 @@ function ImportCSVModal({
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                 {[
                   {
-                    key: "publicId",
-                    label: "Public ID (Ignored)",
+                    key: "no",
+                    label: "no",
                     required: false,
                   },
                   { key: "level", label: "Level", required: false },
