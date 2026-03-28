@@ -6,11 +6,23 @@ import { unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
-// Helper untuk menghapus file
-async function deleteFile(publicPath: string | null) {
-  if (!publicPath) return;
+// Helper untuk menghapus file (Update logic sama dengan file sebelumnya)
+async function deleteFile(apiUrl: string | null) {
+  if (!apiUrl) return;
   try {
-    const filePath = path.join(process.cwd(), "public", publicPath);
+    // Ambil nama file dari URL API
+    const fileName = apiUrl.split("/").pop();
+    if (!fileName) return;
+
+    // Path fisik ada di public
+    const filePath = path.join(
+      process.cwd(),
+      "public",
+      "uploads",
+      "characters-master",
+      fileName,
+    );
+
     if (existsSync(filePath)) {
       await unlink(filePath);
     }
@@ -35,7 +47,6 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Check if character is used in accounts
     const accountCharacters = await db.accountCharacter.count({
       where: { characterId: id },
     });
@@ -47,13 +58,11 @@ export async function DELETE(
       );
     }
 
-    // Ambil info karakter untuk mendapatkan path gambar
     const character = await db.character.findUnique({
       where: { id },
       select: { imageUrl: true },
     });
 
-    // Hapus file gambar jika ada
     if (character) {
       await deleteFile(character.imageUrl);
     }

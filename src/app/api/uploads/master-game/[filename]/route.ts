@@ -4,7 +4,7 @@ import path from "path";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ filename: string }> }
+  { params }: { params: Promise<{ filename: string }> },
 ) {
   try {
     const { filename } = await params;
@@ -23,7 +23,7 @@ export async function GET(
       process.cwd(),
       "public",
       "uploads",
-      "master-game"
+      "master-game",
     );
     const filePath = path.join(baseDir, filename);
 

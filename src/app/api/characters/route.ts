@@ -11,12 +11,14 @@ async function saveFile(file: File): Promise<string> {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
+  // 1. Path fisik tetap di public/uploads/characters-master
   const uploadDir = path.join(
     process.cwd(),
     "public",
     "uploads",
     "characters-master",
   );
+
   if (!existsSync(uploadDir)) {
     await mkdir(uploadDir, { recursive: true });
   }
@@ -27,14 +29,29 @@ async function saveFile(file: File): Promise<string> {
   const filePath = path.join(uploadDir, fileName);
 
   await writeFile(filePath, buffer);
-  return `/uploads/characters-master/${fileName}`;
+
+  // 2. UBAH: Kembalikan URL API Route, bukan path public langsung
+  return `/api/uploads/characters-master/${fileName}`;
 }
 
 // Helper untuk menghapus file
-async function deleteFile(publicPath: string | null) {
-  if (!publicPath) return;
+async function deleteFile(apiUrl: string | null) {
+  if (!apiUrl) return;
   try {
-    const filePath = path.join(process.cwd(), "public", publicPath);
+    // 3. UBAH: Parse URL API untuk mendapatkan nama file
+    // Contoh: /api/uploads/characters-master/file.jpg -> file.jpg
+    const fileName = apiUrl.split("/").pop();
+    if (!fileName) return;
+
+    // Path fisik: public/uploads/characters-master/file.jpg
+    const filePath = path.join(
+      process.cwd(),
+      "public",
+      "uploads",
+      "characters-master",
+      fileName,
+    );
+
     if (existsSync(filePath)) {
       await unlink(filePath);
     }
@@ -43,7 +60,7 @@ async function deleteFile(publicPath: string | null) {
   }
 }
 
-// GET
+// GET (Tetap sama)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -79,7 +96,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST - Create
+// POST - Create (Tetap sama, tapi sekarang saveFile mengembalikan URL API)
 export async function POST(request: Request) {
   try {
     const token = await getToken({ req: request });
@@ -140,7 +157,7 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT - Update
+// PUT - Update (Tetap sama, tapi deleteFile sekarang bisa handle URL API)
 export async function PUT(request: Request) {
   try {
     const token = await getToken({ req: request });
