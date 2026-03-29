@@ -369,8 +369,13 @@ function SidebarContent({
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-emerald-900/30 px-6">
-        <Store className="h-8 w-8 text-emerald-500" />
-        <span className="text-xl font-bold text-white">Rikkastore</span>
+        <img
+          src="/rikkastore.png"
+          alt="Rikkastore Logo"
+          width={45}
+          height={45}
+        />
+        <span className="text-xl font-bold text-white">AIC Dashboard</span>
       </div>
 
       {/* Navigation with Collapsible Groups */}

@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Rikkastore.id - Game Account Marketplace",
+  title: "Accounts Interactive Catalog - Game Account Marketplace",
   description:
     "B2B platform for buying and selling game accounts. Secure transactions with tiered pricing for resellers.",
   keywords: [

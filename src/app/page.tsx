@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react"; // Ditambah useEffect
+import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -9,11 +9,11 @@ import Image from "next/image";
 import {
   Search,
   Filter,
-  LogIn,
   Copy,
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Diamond,
   Shield,
   Star,
@@ -45,6 +45,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -320,7 +326,7 @@ function Navbar({ session }: { session: unknown }) {
             className="group-hover:scale-105"
           >
             <Image
-              src="/rikkastore.png"
+              src="/rikkastore-removebg-preview.png"
               alt="Rikkastore"
               fill
               className="object-contain"
@@ -338,7 +344,8 @@ function Navbar({ session }: { session: unknown }) {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              RIKKA<span style={{ color: "var(--pink)" }}>STORE</span>
+              Accounts{" "}
+              <span style={{ color: "var(--pink)" }}>Interactive Catalog</span>
             </div>
             <div
               className="ff-body"
@@ -355,19 +362,14 @@ function Navbar({ session }: { session: unknown }) {
           </div>
         </Link>
         <div>
+          {/* DIUBAH: Hanya menampilkan tombol Dashboard jika user sudah login */}
           {us ? (
             <Link href="/dashboard/overview">
               <button className="btn-pk">
                 <LayoutDashboard size={16} /> Dashboard
               </button>
             </Link>
-          ) : (
-            <Link href="/login">
-              <button className="btn-gh">
-                <LogIn size={14} /> Login
-              </button>
-            </Link>
-          )}
+          ) : null}
         </div>
       </div>
     </nav>
@@ -662,7 +664,9 @@ function AccountCard({
               background: copied
                 ? "rgba(255,77,140,0.15)"
                 : "rgba(255,255,255,0.05)",
-              border: `1px solid ${copied ? "rgba(255,77,140,0.3)" : "rgba(255,255,255,0.08)"}`,
+              border: `1px solid ${
+                copied ? "rgba(255,77,140,0.3)" : "rgba(255,255,255,0.08)"
+              }`,
             }}
           >
             {copied ? (
@@ -813,10 +817,13 @@ function AccountCard({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-start justify-center p-4"
             style={{
               background: "rgba(0,0,0,0.8)",
               backdropFilter: "blur(8px)",
+              overflowY: "auto", // ← tambah ini
+              paddingTop: "80px", // ← biar ga ketutup navbar
+              paddingBottom: "40px", // ← napas di bawah
             }}
             onClick={() => setShowModal(false)}
           >
@@ -834,9 +841,13 @@ function AccountCard({
               }}
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Header - tambah paddingBottom */}
               <div
-                className="flex items-center justify-between p-6"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+                className="flex items-center justify-between"
+                style={{
+                  padding: "20px 24px",
+                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                }}
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -877,23 +888,34 @@ function AccountCard({
                   <X size={18} />
                 </button>
               </div>
-              <div className="p-6">
+              <div style={{ padding: "20px 24px" }}>
                 <div
-                  className="w-full rounded-2xl p-5 text-sm leading-relaxed"
                   style={{
                     background: "rgba(0,0,0,0.3)",
                     border: "1px solid rgba(255,255,255,0.05)",
-                    color: "var(--t2)",
+                    borderRadius: 16,
+                    padding: "20px 24px",
                     fontFamily: "monospace",
+                    fontSize: 13,
+                    lineHeight: 2,
+                    color: "var(--t2)",
                     whiteSpace: "pre-wrap",
-                    maxHeight: "50vh",
+                    maxHeight: "55vh",
                     overflowY: "auto",
                   }}
                 >
                   {descriptionText}
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row justify-between gap-3 p-6 pt-0">
+              {/* Footer - tambah paddingTop dan gap antar tombol */}
+              <div
+                className="flex flex-col sm:flex-row justify-between gap-3"
+                style={{
+                  padding: "20px 24px",
+                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                {" "}
                 <button
                   onClick={handleRegenerate}
                   className="btn-gh w-full sm:w-auto justify-center"
@@ -949,7 +971,6 @@ export default function LandingPage() {
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
-  // State untuk menyimpan jumlah akun tersedia per game (ID -> Count)
   const [gameCounts, setGameCounts] = useState<Record<string, number>>({});
 
   const { data: gamesData, isLoading: isLoadingGames } = useQuery({
@@ -961,17 +982,13 @@ export default function LandingPage() {
     },
   });
 
-  // Effect untuk mengambil jumlah akun tersedia saat data game dimuat
   useEffect(() => {
     if (gamesData?.games) {
       const fetchCounts = async () => {
         const activeGames = gamesData.games.filter((g: Game) => g.status);
         const counts: Record<string, number> = {};
-
-        // Fetch semua jumlah akun secara paralel
         const promises = activeGames.map(async (game: Game) => {
           try {
-            // Limit 1 hanya untuk mendapatkan total pagination (data yang sebenarnya tidak dipakai)
             const res = await fetch(
               `/api/accounts/front?gameId=${game.id}&limit=1`,
             );
@@ -981,11 +998,9 @@ export default function LandingPage() {
             counts[game.id] = 0;
           }
         });
-
         await Promise.all(promises);
         setGameCounts(counts);
       };
-
       fetchCounts();
     }
   }, [gamesData]);
@@ -1243,7 +1258,6 @@ export default function LandingPage() {
                         <div className="gc-meta">
                           <div className="gc-code">{game.code}</div>
                           <div className="gc-name">{game.name}</div>
-                          {/* BAGIAN YANG DIUBAH: Menampilkan jumlah dinamis */}
                           <div className="gc-cnt">
                             <Users size={12} />
                             {gameCounts[game.id] !== undefined ? (
@@ -1613,159 +1627,453 @@ export default function LandingPage() {
                       )}
                     </div>
                   )}
+                  {/* Filter Buttons using Dropdown Menu */}
                   <div
                     style={{
                       display: "grid",
                       gridTemplateColumns:
-                        "repeat(auto-fit, minmax(200px, 1fr))",
-                      gap: 18,
+                        "repeat(auto-fit, minmax(180px, 1fr))",
+                      gap: 16,
                     }}
                   >
-                    <div>
+                    {/* Diamond Dropdown */}
+                    <div
+                      style={{
+                        padding: "14px 16px",
+                      }}
+                    >
                       <div
-                        className="flex items-center gap-2 mb-3 text-sm font-bold"
-                        style={{ color: "var(--t2)" }}
+                        className="flex items-center gap-2 mb-3 text-xs font-bold"
+                        style={{
+                          color: "var(--t3)",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                        }}
                       >
-                        <Gem size={14} style={{ color: "var(--cyan)" }} />{" "}
+                        <Gem size={12} style={{ color: "var(--cyan)" }} />{" "}
                         Diamond
                       </div>
-                      <Select
-                        value={filters.minDiamond.toString()}
-                        onValueChange={(v) => {
-                          setFilters((p) => ({
-                            ...p,
-                            minDiamond: parseInt(v),
-                          }));
-                          setPage(1);
-                        }}
-                      >
-                        <SelectTrigger className="bg-black/40 border-white/10 rounded-xl h-12">
-                          <SelectValue placeholder="Pilih Diamond" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-pink-500/20">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            style={{
+                              background: "rgba(0,0,0,0.35)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              borderRadius: 12,
+                              height: 44,
+                              color: "var(--t1)",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              width: "100%",
+                              transition: "all 0.2s",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexDirection: "row-reverse",
+                              padding: "0 16px",
+                            }}
+                            className="hover:border-pink-500/40 focus:border-pink-500/50 focus:ring-0 focus:ring-offset-0"
+                          >
+                            <ChevronDown className="h-4 w-4 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+
+                            <span>
+                              {DIAMOND_OPTIONS.find(
+                                (o) =>
+                                  o.value === filters.minDiamond.toString(),
+                              )?.label || "Semua Diamond"}
+                            </span>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          style={{
+                            background: "rgba(10,15,26,0.98)",
+                            border: "1px solid rgba(255,77,140,0.2)",
+                            borderRadius: 14,
+                            backdropFilter: "blur(16px)",
+                            boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+                            minWidth: "200px",
+                          }}
+                          className="z-50"
+                        >
                           {DIAMOND_OPTIONS.map((o) => (
-                            <SelectItem
+                            <DropdownMenuItem
                               key={o.value}
-                              value={o.value}
-                              className="text-white focus:bg-pink-500/20"
+                              onClick={() => {
+                                setFilters((p) => ({
+                                  ...p,
+                                  minDiamond: parseInt(o.value),
+                                }));
+                                setPage(1);
+                              }}
+                              className={cn(
+                                "text-sm font-medium cursor-pointer",
+                                filters.minDiamond.toString() === o.value &&
+                                  "bg-pink-500/15 text-white",
+                              )}
+                              style={{
+                                color: "var(--t2)",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                              }}
                             >
                               {o.label}
-                            </SelectItem>
+                              {filters.minDiamond.toString() === o.value && (
+                                <Check
+                                  size={14}
+                                  className="ml-auto"
+                                  style={{ color: "var(--pink)" }}
+                                />
+                              )}
+                            </DropdownMenuItem>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <div>
+
+                    {/* Level Dropdown */}
+                    <div
+                      style={{
+                        padding: "14px 16px",
+                      }}
+                    >
                       <div
-                        className="flex items-center gap-2 mb-3 text-sm font-bold"
-                        style={{ color: "var(--t2)" }}
+                        className="flex items-center gap-2 mb-3 text-xs font-bold"
+                        style={{
+                          color: "var(--t3)",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                        }}
                       >
-                        <Shield size={14} style={{ color: "var(--pink)" }} />{" "}
+                        <Shield size={12} style={{ color: "var(--pink)" }} />{" "}
                         Level
                       </div>
-                      <Select
-                        value={filters.minLevel.toString()}
-                        onValueChange={(v) => {
-                          setFilters((p) => ({ ...p, minLevel: parseInt(v) }));
-                          setPage(1);
-                        }}
-                      >
-                        <SelectTrigger className="bg-black/40 border-white/10 rounded-xl h-12">
-                          <SelectValue placeholder="Pilih Level" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-pink-500/20">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            style={{
+                              background: "rgba(0,0,0,0.35)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              borderRadius: 12,
+                              height: 44,
+                              color: "var(--t1)",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              width: "100%",
+                              transition: "all 0.2s",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexDirection: "row-reverse",
+                              padding: "0 16px",
+                            }}
+                            className="hover:border-pink-500/40 focus:border-pink-500/50 focus:ring-0 focus:ring-offset-0"
+                          >
+                            <ChevronDown className="h-4 w-4 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                            <span>
+                              {LEVEL_OPTIONS.find(
+                                (o) => o.value === filters.minLevel.toString(),
+                              )?.label || "Semua Level"}
+                            </span>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          style={{
+                            background: "rgba(10,15,26,0.98)",
+                            border: "1px solid rgba(255,77,140,0.2)",
+                            borderRadius: 14,
+                            backdropFilter: "blur(16px)",
+                            boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+                            minWidth: "200px",
+                          }}
+                          className="z-50"
+                        >
                           {LEVEL_OPTIONS.map((o) => (
-                            <SelectItem
+                            <DropdownMenuItem
                               key={o.value}
-                              value={o.value}
-                              className="text-white focus:bg-pink-500/20"
+                              onClick={() => {
+                                setFilters((p) => ({
+                                  ...p,
+                                  minLevel: parseInt(o.value),
+                                }));
+                                setPage(1);
+                              }}
+                              className={cn(
+                                "text-sm font-medium cursor-pointer",
+                                filters.minLevel.toString() === o.value &&
+                                  "bg-pink-500/15 text-white",
+                              )}
+                              style={{
+                                color: "var(--t2)",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                              }}
                             >
                               {o.label}
-                            </SelectItem>
+                              {filters.minLevel.toString() === o.value && (
+                                <Check
+                                  size={14}
+                                  className="ml-auto"
+                                  style={{ color: "var(--pink)" }}
+                                />
+                              )}
+                            </DropdownMenuItem>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <div>
+
+                    {/* Server Dropdown */}
+                    <div
+                      style={{
+                        padding: "14px 16px",
+                      }}
+                    >
                       <div
-                        className="flex items-center gap-2 mb-3 text-sm font-bold"
-                        style={{ color: "var(--t2)" }}
-                      >
-                        <Compass size={14} /> Server
-                      </div>
-                      <Select
-                        value={filters.serverId || "all"}
-                        onValueChange={(v) => {
-                          setFilters((p) => ({
-                            ...p,
-                            serverId: v === "all" ? "" : v,
-                          }));
-                          setPage(1);
+                        className="flex items-center gap-2 mb-3 text-xs font-bold"
+                        style={{
+                          color: "var(--t3)",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
                         }}
                       >
-                        <SelectTrigger className="bg-black/40 border-white/10 rounded-xl h-12">
-                          <SelectValue placeholder="Semua Server" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-pink-500/20">
-                          <SelectItem
-                            value="all"
-                            className="text-white focus:bg-pink-500/20"
+                        <Compass size={12} style={{ color: "var(--purple)" }} />{" "}
+                        Server
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            style={{
+                              background: "rgba(0,0,0,0.35)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              borderRadius: 12,
+                              height: 44,
+                              color: "var(--t1)",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              width: "100%",
+                              transition: "all 0.2s",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexDirection: "row-reverse",
+                              padding: "0 16px",
+                            }}
+                            className="hover:border-pink-500/40 focus:border-pink-500/50 focus:ring-0 focus:ring-offset-0"
+                          >
+                            <ChevronDown className="h-4 w-4 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                            <span>
+                              {filters.serverId
+                                ? serversData?.servers?.find(
+                                    (s: Server) => s.id === filters.serverId,
+                                  )?.name || "Semua Server"
+                                : "Semua Server"}
+                            </span>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          style={{
+                            background: "rgba(10,15,26,0.98)",
+                            border: "1px solid rgba(255,77,140,0.2)",
+                            borderRadius: 14,
+                            backdropFilter: "blur(16px)",
+                            boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+                            minWidth: "200px",
+                            maxHeight: "300px",
+                            overflowY: "auto",
+                          }}
+                          className="z-50"
+                        >
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setFilters((p) => ({ ...p, serverId: "" }));
+                              setPage(1);
+                            }}
+                            className={cn(
+                              "text-sm font-medium cursor-pointer",
+                              !filters.serverId && "bg-pink-500/15 text-white",
+                            )}
+                            style={{
+                              color: "var(--t2)",
+                              borderRadius: 8,
+                              padding: "8px 12px",
+                            }}
                           >
                             Semua Server
-                          </SelectItem>
+                            {!filters.serverId && (
+                              <Check
+                                size={14}
+                                className="ml-auto"
+                                style={{ color: "var(--pink)" }}
+                              />
+                            )}
+                          </DropdownMenuItem>
                           {serversData?.servers?.map((s: Server) => (
-                            <SelectItem
+                            <DropdownMenuItem
                               key={s.id}
-                              value={s.id}
-                              className="text-white focus:bg-pink-500/20"
+                              onClick={() => {
+                                setFilters((p) => ({ ...p, serverId: s.id }));
+                                setPage(1);
+                              }}
+                              className={cn(
+                                "text-sm font-medium cursor-pointer",
+                                filters.serverId === s.id &&
+                                  "bg-pink-500/15 text-white",
+                              )}
+                              style={{
+                                color: "var(--t2)",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                              }}
                             >
                               {s.name}
-                            </SelectItem>
+                              {filters.serverId === s.id && (
+                                <Check
+                                  size={14}
+                                  className="ml-auto"
+                                  style={{ color: "var(--pink)" }}
+                                />
+                              )}
+                            </DropdownMenuItem>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <div>
+
+                    {/* Gender Dropdown */}
+                    <div
+                      style={{
+                        padding: "14px 16px",
+                      }}
+                    >
                       <div
-                        className="flex items-center gap-2 mb-3 text-sm font-bold"
-                        style={{ color: "var(--t2)" }}
-                      >
-                        <Users size={14} /> Gender
-                      </div>
-                      <Select
-                        value={filters.gender || "all"}
-                        onValueChange={(v) => {
-                          setFilters((p) => ({
-                            ...p,
-                            gender: v === "all" ? "" : v,
-                          }));
-                          setPage(1);
+                        className="flex items-center gap-2 mb-3 text-xs font-bold"
+                        style={{
+                          color: "var(--t3)",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
                         }}
                       >
-                        <SelectTrigger className="bg-black/40 border-white/10 rounded-xl h-12">
-                          <SelectValue placeholder="Semua Gender" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-pink-500/20">
-                          <SelectItem
-                            value="all"
-                            className="text-white focus:bg-pink-500/20"
+                        <Users size={12} style={{ color: "var(--amber)" }} />{" "}
+                        Gender
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            style={{
+                              background: "rgba(0,0,0,0.35)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              borderRadius: 12,
+                              height: 44,
+                              color: "var(--t1)",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              width: "100%",
+                              transition: "all 0.2s",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexDirection: "row-reverse",
+                              padding: "0 16px",
+                            }}
+                            className="hover:border-pink-500/40 focus:border-pink-500/50 focus:ring-0 focus:ring-offset-0"
+                          >
+                            <ChevronDown className="h-4 w-4 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                            <span>
+                              {filters.gender === "MALE"
+                                ? "Male"
+                                : filters.gender === "FEMALE"
+                                  ? "Female"
+                                  : "Semua Gender"}
+                            </span>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          style={{
+                            background: "rgba(10,15,26,0.98)",
+                            border: "1px solid rgba(255,77,140,0.2)",
+                            borderRadius: 14,
+                            backdropFilter: "blur(16px)",
+                            boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+                            minWidth: "200px",
+                          }}
+                          className="z-50"
+                        >
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setFilters((p) => ({ ...p, gender: "" }));
+                              setPage(1);
+                            }}
+                            className={cn(
+                              "text-sm font-medium cursor-pointer",
+                              !filters.gender && "bg-pink-500/15 text-white",
+                            )}
+                            style={{
+                              color: "var(--t2)",
+                              borderRadius: 8,
+                              padding: "8px 12px",
+                            }}
                           >
                             Semua Gender
-                          </SelectItem>
-                          <SelectItem
-                            value="MALE"
-                            className="text-white focus:bg-pink-500/20"
+                            {!filters.gender && (
+                              <Check
+                                size={14}
+                                className="ml-auto"
+                                style={{ color: "var(--pink)" }}
+                              />
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setFilters((p) => ({ ...p, gender: "MALE" }));
+                              setPage(1);
+                            }}
+                            className={cn(
+                              "text-sm font-medium cursor-pointer",
+                              filters.gender === "MALE" &&
+                                "bg-pink-500/15 text-white",
+                            )}
+                            style={{
+                              color: "var(--t2)",
+                              borderRadius: 8,
+                              padding: "8px 12px",
+                            }}
                           >
                             Male
-                          </SelectItem>
-                          <SelectItem
-                            value="FEMALE"
-                            className="text-white focus:bg-pink-500/20"
+                            {filters.gender === "MALE" && (
+                              <Check
+                                size={14}
+                                className="ml-auto"
+                                style={{ color: "var(--pink)" }}
+                              />
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setFilters((p) => ({ ...p, gender: "FEMALE" }));
+                              setPage(1);
+                            }}
+                            className={cn(
+                              "text-sm font-medium cursor-pointer",
+                              filters.gender === "FEMALE" &&
+                                "bg-pink-500/15 text-white",
+                            )}
+                            style={{
+                              color: "var(--t2)",
+                              borderRadius: 8,
+                              padding: "8px 12px",
+                            }}
                           >
                             Female
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                            {filters.gender === "FEMALE" && (
+                              <Check
+                                size={14}
+                                className="ml-auto"
+                                style={{ color: "var(--pink)" }}
+                              />
+                            )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
