@@ -397,8 +397,10 @@ function Footer() {
           }}
         >
           © {new Date().getFullYear()}{" "}
-          <span style={{ color: "rgba(255,77,140,0.7)" }}>Rikkastore.id</span> —
-          Premium Game Account Marketplace
+          <span style={{ color: "rgba(255,77,140,0.7)" }}>
+            Accounts Interactive Catalog
+          </span>{" "}
+          — Premium Game Account Marketplace
         </p>
       </div>
     </footer>
@@ -608,12 +610,49 @@ function AccountCard({
   }, [account, shuffleKey]);
 
   const handleCopyDesc = async () => {
-    await navigator.clipboard.writeText(descriptionText);
-    setCopiedDesc(true);
-    toast.success("Deskripsi disalin!", {
-      description: "Teks detail akun berhasil disalin.",
-    });
-    setTimeout(() => setCopiedDesc(false), 2000);
+    // Pastikan di browser dan clipboard tersedia
+    if (typeof window === "undefined") return;
+
+    // Cek apakah clipboard API tersedia
+    if (!navigator.clipboard) {
+      // Fallback manual: buat textarea temporary
+      const textArea = document.createElement("textarea");
+      textArea.value = descriptionText;
+      document.body.appendChild(textArea);
+      textArea.select();
+      textArea.setSelectionRange(0, 99999);
+
+      try {
+        document.execCommand("copy");
+        setCopiedDesc(true);
+        toast.success("Deskripsi disalin!", {
+          description: "Teks detail akun berhasil disalin.",
+        });
+        setTimeout(() => setCopiedDesc(false), 2000);
+      } catch (err) {
+        toast.error("Gagal menyalin!", {
+          description: "Silakan copy manual dengan seleksi teks.",
+        });
+      } finally {
+        document.body.removeChild(textArea);
+      }
+      return;
+    }
+
+    // Clipboard API tersedia
+    try {
+      await navigator.clipboard.writeText(descriptionText);
+      setCopiedDesc(true);
+      toast.success("Deskripsi disalin!", {
+        description: "Teks detail akun berhasil disalin.",
+      });
+      setTimeout(() => setCopiedDesc(false), 2000);
+    } catch (err) {
+      console.error("Clipboard error:", err);
+      toast.error("Gagal menyalin!", {
+        description: "Silakan coba lagi atau copy manual.",
+      });
+    }
   };
 
   const handleRegenerate = () => setShuffleKey((prev) => prev + 1);
@@ -1065,8 +1104,42 @@ export default function LandingPage() {
   });
 
   const handleCopyId = async (id: string) => {
-    await navigator.clipboard.writeText(id);
-    toast.success("ID Akun Disalin!", { description: `Account ID: ${id}` });
+    // Cek apakah di browser
+    if (typeof window === "undefined") return;
+
+    // Fallback manual dengan textarea
+    if (!navigator.clipboard) {
+      const textArea = document.createElement("textarea");
+      textArea.value = id;
+      document.body.appendChild(textArea);
+      textArea.select();
+      textArea.setSelectionRange(0, 99999);
+
+      try {
+        document.execCommand("copy");
+        toast.success("ID Akun Disalin!", { description: `Account ID: ${id}` });
+      } catch (err) {
+        toast.error("Gagal menyalin!", { description: "Silakan copy manual." });
+      } finally {
+        document.body.removeChild(textArea);
+      }
+      return;
+    }
+
+    // Clipboard API tersedia
+    try {
+      await navigator.clipboard.writeText(id);
+      toast.success("ID Akun Disalin!", { description: `Account ID: ${id}` });
+    } catch (err) {
+      // Fallback lagi
+      const textArea = document.createElement("textarea");
+      textArea.value = id;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      toast.success("ID Akun Disalin!", { description: `Account ID: ${id}` });
+    }
   };
   const addFilter = (type: "characters" | "weapons", id: string) => {
     setFilters((prev) => {

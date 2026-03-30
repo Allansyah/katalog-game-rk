@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Rikkastore Team" }],
   icons: {
-    icon: "/rikkastore.png",
+    icon: "/rikkastore-removebg-preview.png",
   },
   openGraph: {
     title: "Rikkastore.id - Game Account Marketplace",

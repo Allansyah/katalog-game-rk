@@ -141,13 +141,15 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
             <Image
-              src="/rikkastore.png"
+              src="/rikkastore-removebg-preview.png"
               alt="Rikkastore"
-              width={42}
-              height={42}
-              className="w-10 h-10 object-contain"
+              width={100}
+              height={100}
+              className="w-10 h-10 object-contain mt-3"
             />
-            <span className="text-2xl font-bold text-white">Rikkastore</span>
+            <span className="text-2xl font-bold text-white">
+              Accounts Interactive Catalog
+            </span>
           </Link>
         </div>
 

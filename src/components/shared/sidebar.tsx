@@ -370,7 +370,7 @@ function SidebarContent({
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-emerald-900/30 px-6">
         <img
-          src="/rikkastore.png"
+          src="/rikkastore-removebg-preview.png"
           alt="Rikkastore Logo"
           width={45}
           height={45}

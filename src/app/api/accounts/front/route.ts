@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true,
                 rarity: true,
+
                 element: true,
                 imageUrl: true,
               },

@@ -1,11 +1,21 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Loader2, Edit, Trash2, Ban, CheckCircle, XCircle, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Search,
+  Plus,
+  Loader2,
+  Edit,
+  Trash2,
+  Ban,
+  CheckCircle,
+  XCircle,
+  UserPlus,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -13,25 +23,25 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { Role } from '@prisma/client';
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { Role } from "@prisma/client";
 
 interface User {
   id: string;
@@ -47,47 +57,62 @@ interface User {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'SUPER_ADMIN', label: 'Super Admin', color: 'bg-purple-600/20 text-purple-400' },
-  { value: 'SUPPLIER', label: 'Supplier', color: 'bg-blue-600/20 text-blue-400' },
-  { value: 'RESELLER', label: 'Reseller', color: 'bg-emerald-600/20 text-emerald-400' },
+  {
+    value: "SUPER_ADMIN",
+    label: "Super Admin",
+    color: "bg-purple-600/20 text-purple-400",
+  },
+  {
+    value: "SUPPLIER",
+    label: "Supplier",
+    color: "bg-blue-600/20 text-blue-400",
+  },
+  {
+    value: "RESELLER",
+    label: "Reseller",
+    color: "bg-emerald-600/20 text-emerald-400",
+  },
 ];
+
+// Roles yang bisa memiliki tier
+const ROLES_WITH_TIERS = ["RESELLER", "SUPPLIER"];
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'RESELLER',
-    tierId: 'no-tier',
-    balance: '0',
+    name: "",
+    email: "",
+    password: "",
+    role: "RESELLER",
+    tierId: "no-tier",
+    balance: "0",
   });
 
   // Fetch users
   const { data: users, isLoading } = useQuery({
-    queryKey: ['users', search, roleFilter],
+    queryKey: ["users", search, roleFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (roleFilter !== 'all') params.set('role', roleFilter);
-      
+      if (search) params.set("search", search);
+      if (roleFilter !== "all") params.set("role", roleFilter);
+
       const res = await fetch(`/api/users?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch users');
+      if (!res.ok) throw new Error("Failed to fetch users");
       return res.json();
     },
   });
 
   // Fetch tiers for dropdown
   const { data: tiersData } = useQuery({
-    queryKey: ['tiers'],
+    queryKey: ["tiers"],
     queryFn: async () => {
-      const res = await fetch('/api/tiers');
-      if (!res.ok) throw new Error('Failed to fetch tiers');
+      const res = await fetch("/api/tiers");
+      if (!res.ok) throw new Error("Failed to fetch tiers");
       return res.json();
     },
   });
@@ -95,21 +120,21 @@ export default function UsersPage() {
   // Create user mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      
+
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to create user');
+        throw new Error(error.error || "Failed to create user");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success('User created successfully');
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success("User created successfully");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       setIsCreateModalOpen(false);
       resetForm();
     },
@@ -121,21 +146,21 @@ export default function UsersPage() {
   // Update user mutation
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData & { id: string }) => {
-      const res = await fetch('/api/users', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      
+
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to update user');
+        throw new Error(error.error || "Failed to update user");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success('User updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success("User updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       setIsEditModalOpen(false);
       setSelectedUser(null);
       resetForm();
@@ -148,16 +173,16 @@ export default function UsersPage() {
   // Delete user mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/users?id=${id}`, { method: "DELETE" });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to delete user');
+        throw new Error(error.error || "Failed to delete user");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success('User deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success("User deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -166,22 +191,28 @@ export default function UsersPage() {
 
   // Ban/Unban mutation
   const banMutation = useMutation({
-    mutationFn: async ({ userId, isBanned }: { userId: string; isBanned: boolean }) => {
+    mutationFn: async ({
+      userId,
+      isBanned,
+    }: {
+      userId: string;
+      isBanned: boolean;
+    }) => {
       const res = await fetch(`/api/users/${userId}/ban`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isBanned }),
       });
-      
+
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to update user status');
+        throw new Error(error.error || "Failed to update user status");
       }
       return res.json();
     },
     onSuccess: (data) => {
       toast.success(data.message);
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -190,12 +221,12 @@ export default function UsersPage() {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      email: '',
-      password: '',
-      role: 'RESELLER',
-      tierId: 'no-tier',
-      balance: '0',
+      name: "",
+      email: "",
+      password: "",
+      role: "RESELLER",
+      tierId: "no-tier",
+      balance: "0",
     });
   };
 
@@ -209,9 +240,9 @@ export default function UsersPage() {
     setFormData({
       name: user.name,
       email: user.email,
-      password: '',
+      password: "",
       role: user.role,
-      tierId: user.tierId || 'no-tier',
+      tierId: user.tierId || "no-tier",
       balance: user.balance.toString(),
     });
     setIsEditModalOpen(true);
@@ -221,7 +252,7 @@ export default function UsersPage() {
     e.preventDefault();
     const submitData = {
       ...formData,
-      tierId: formData.tierId === 'no-tier' ? null : formData.tierId,
+      tierId: formData.tierId === "no-tier" ? null : formData.tierId,
     };
     createMutation.mutate(submitData);
   };
@@ -231,30 +262,39 @@ export default function UsersPage() {
     if (!selectedUser) return;
     const submitData = {
       ...formData,
-      tierId: formData.tierId === 'no-tier' ? null : formData.tierId,
+      tierId: formData.tierId === "no-tier" ? null : formData.tierId,
       id: selectedUser.id,
     };
     updateMutation.mutate(submitData);
   };
 
   const getRoleBadge = (role: string) => {
-    const config = ROLE_OPTIONS.find(r => r.value === role) || ROLE_OPTIONS[2];
+    const config =
+      ROLE_OPTIONS.find((r) => r.value === role) || ROLE_OPTIONS[2];
     return (
       <Badge className={`${config.color} border-0`}>
-        {role.replace('_', ' ')}
+        {role.replace("_", " ")}
       </Badge>
     );
   };
+
+  // Cek apakah role yang dipilih bisa memiliki tier
+  const canHaveTier = ROLES_WITH_TIERS.includes(formData.role);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">User Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
+            User Management
+          </h1>
           <p className="text-zinc-400">Manage all users</p>
         </div>
-        <Button onClick={openCreateModal} className="bg-emerald-600 hover:bg-emerald-700">
+        <Button
+          onClick={openCreateModal}
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
           <UserPlus className="mr-2 h-4 w-4" />
           Add User
         </Button>
@@ -314,8 +354,13 @@ export default function UsersPage() {
                 </TableHeader>
                 <TableBody>
                   {users?.users?.map((user: User) => (
-                    <TableRow key={user.id} className={`border-zinc-800 hover:bg-zinc-800/50 ${user.isBanned ? 'opacity-60' : ''}`}>
-                      <TableCell className="text-white font-medium">{user.name}</TableCell>
+                    <TableRow
+                      key={user.id}
+                      className={`border-zinc-800 hover:bg-zinc-800/50 ${user.isBanned ? "opacity-60" : ""}`}
+                    >
+                      <TableCell className="text-white font-medium">
+                        {user.name}
+                      </TableCell>
                       <TableCell className="text-white">{user.email}</TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
                       <TableCell>
@@ -359,12 +404,14 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => banMutation.mutate({ 
-                              userId: user.id, 
-                              isBanned: !user.isBanned 
-                            })}
+                            onClick={() =>
+                              banMutation.mutate({
+                                userId: user.id,
+                                isBanned: !user.isBanned,
+                              })
+                            }
                             disabled={banMutation.isPending}
-                            title={user.isBanned ? 'Unban user' : 'Ban user'}
+                            title={user.isBanned ? "Unban user" : "Ban user"}
                           >
                             {user.isBanned ? (
                               <CheckCircle className="h-4 w-4 text-emerald-400" />
@@ -376,7 +423,11 @@ export default function UsersPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              if (confirm(`Are you sure you want to delete ${user.name}?`)) {
+                              if (
+                                confirm(
+                                  `Are you sure you want to delete ${user.name}?`,
+                                )
+                              ) {
                                 deleteMutation.mutate(user.id);
                               }
                             }}
@@ -391,7 +442,10 @@ export default function UsersPage() {
                   ))}
                   {users?.users?.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-zinc-500 py-8">
+                      <TableCell
+                        colSpan={8}
+                        className="text-center text-zinc-500 py-8"
+                      >
                         No users found
                       </TableCell>
                     </TableRow>
@@ -415,7 +469,9 @@ export default function UsersPage() {
               <Label className="text-zinc-400">Name *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, name: e.target.value }))
+                }
                 placeholder="Full name"
                 className="bg-zinc-800 border-zinc-700"
                 required
@@ -426,7 +482,9 @@ export default function UsersPage() {
               <Input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, email: e.target.value }))
+                }
                 placeholder="email@example.com"
                 className="bg-zinc-800 border-zinc-700"
                 required
@@ -437,7 +495,9 @@ export default function UsersPage() {
               <Input
                 type="password"
                 value={formData.password}
-                onChange={(e) => setFormData((p) => ({ ...p, password: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, password: e.target.value }))
+                }
                 placeholder="••••••••"
                 className="bg-zinc-800 border-zinc-700"
                 required
@@ -463,23 +523,32 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
-            {formData.role === 'RESELLER' && (
+            {/* Perubahan ada di sini - sekarang untuk RESELLER dan SUPPLIER */}
+            {canHaveTier && (
               <div className="space-y-2">
                 <Label className="text-zinc-400">Tier</Label>
                 <Select
                   value={formData.tierId}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, tierId: v }))}
+                  onValueChange={(v) =>
+                    setFormData((p) => ({ ...p, tierId: v }))
+                  }
                 >
                   <SelectTrigger className="bg-zinc-800 border-zinc-700">
                     <SelectValue placeholder="Select tier" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-800 border-zinc-700">
                     <SelectItem value="no-tier">No Tier</SelectItem>
-                    {tiersData?.tiers?.map((tier: { id: string; name: string; discountPercent: number }) => (
-                      <SelectItem key={tier.id} value={tier.id}>
-                        {tier.name} ({tier.discountPercent}%)
-                      </SelectItem>
-                    ))}
+                    {tiersData?.tiers?.map(
+                      (tier: {
+                        id: string;
+                        name: string;
+                        discountPercent: number;
+                      }) => (
+                        <SelectItem key={tier.id} value={tier.id}>
+                          {tier.name} ({tier.discountPercent}%)
+                        </SelectItem>
+                      ),
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -489,7 +558,9 @@ export default function UsersPage() {
               <Input
                 type="number"
                 value={formData.balance}
-                onChange={(e) => setFormData((p) => ({ ...p, balance: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, balance: e.target.value }))
+                }
                 placeholder="0"
                 className="bg-zinc-800 border-zinc-700"
               />
@@ -511,7 +582,7 @@ export default function UsersPage() {
                 {createMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  'Create User'
+                  "Create User"
                 )}
               </Button>
             </div>
@@ -531,7 +602,9 @@ export default function UsersPage() {
               <Label className="text-zinc-400">Name *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, name: e.target.value }))
+                }
                 placeholder="Full name"
                 className="bg-zinc-800 border-zinc-700"
                 required
@@ -542,7 +615,9 @@ export default function UsersPage() {
               <Input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, email: e.target.value }))
+                }
                 placeholder="email@example.com"
                 className="bg-zinc-800 border-zinc-700"
                 required
@@ -553,12 +628,16 @@ export default function UsersPage() {
               <Input
                 type="password"
                 value={formData.password}
-                onChange={(e) => setFormData((p) => ({ ...p, password: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, password: e.target.value }))
+                }
                 placeholder="Leave blank to keep current"
                 className="bg-zinc-800 border-zinc-700"
                 minLength={6}
               />
-              <p className="text-xs text-zinc-500">Leave blank to keep current password</p>
+              <p className="text-xs text-zinc-500">
+                Leave blank to keep current password
+              </p>
             </div>
             <div className="space-y-2">
               <Label className="text-zinc-400">Role *</Label>
@@ -578,23 +657,32 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
-            {formData.role === 'RESELLER' && (
+            {/* Perubahan ada di sini - sekarang untuk RESELLER dan SUPPLIER */}
+            {canHaveTier && (
               <div className="space-y-2">
                 <Label className="text-zinc-400">Tier</Label>
                 <Select
                   value={formData.tierId}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, tierId: v }))}
+                  onValueChange={(v) =>
+                    setFormData((p) => ({ ...p, tierId: v }))
+                  }
                 >
                   <SelectTrigger className="bg-zinc-800 border-zinc-700">
                     <SelectValue placeholder="Select tier" />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-800 border-zinc-700">
                     <SelectItem value="no-tier">No Tier</SelectItem>
-                    {tiersData?.tiers?.map((tier: { id: string; name: string; discountPercent: number }) => (
-                      <SelectItem key={tier.id} value={tier.id}>
-                        {tier.name} ({tier.discountPercent}%)
-                      </SelectItem>
-                    ))}
+                    {tiersData?.tiers?.map(
+                      (tier: {
+                        id: string;
+                        name: string;
+                        discountPercent: number;
+                      }) => (
+                        <SelectItem key={tier.id} value={tier.id}>
+                          {tier.name} ({tier.discountPercent}%)
+                        </SelectItem>
+                      ),
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -604,7 +692,9 @@ export default function UsersPage() {
               <Input
                 type="number"
                 value={formData.balance}
-                onChange={(e) => setFormData((p) => ({ ...p, balance: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, balance: e.target.value }))
+                }
                 placeholder="0"
                 className="bg-zinc-800 border-zinc-700"
               />
@@ -626,7 +716,7 @@ export default function UsersPage() {
                 {updateMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  'Save Changes'
+                  "Save Changes"
                 )}
               </Button>
             </div>
