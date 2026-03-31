@@ -1,16 +1,25 @@
-'use client';
-
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
-import { User, Mail, Shield, Wallet, Calendar, Loader2, Save, Key, Star } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
+"use client";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import {
+  User,
+  Mail,
+  Shield,
+  Wallet,
+  Calendar,
+  Loader2,
+  Save,
+  Key,
+  Star,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 interface UserProfile {
   id: string;
@@ -29,17 +38,17 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const { data: session, update: updateSession } = useSession();
-  const [name, setName] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Fetch profile
   const { data: profileData, isLoading } = useQuery({
-    queryKey: ['profile'],
+    queryKey: ["profile"],
     queryFn: async () => {
-      const res = await fetch('/api/user/profile');
-      if (!res.ok) throw new Error('Failed to fetch');
+      const res = await fetch("/api/user/profile");
+      if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
   });
@@ -47,19 +56,19 @@ export default function ProfilePage() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (newName: string) => {
-      const res = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName }),
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to update');
+        throw new Error(error.error || "Failed to update");
       }
       return res.json();
     },
     onSuccess: (data) => {
-      toast.success('Profile updated successfully');
+      toast.success("Profile updated successfully");
       updateSession({ name: data.user.name });
     },
     onError: (error: Error) => {
@@ -71,28 +80,28 @@ export default function ProfilePage() {
   const changePasswordMutation = useMutation({
     mutationFn: async () => {
       if (newPassword !== confirmPassword) {
-        throw new Error('New passwords do not match');
+        throw new Error("New passwords do not match");
       }
       if (newPassword.length < 6) {
-        throw new Error('New password must be at least 6 characters');
+        throw new Error("New password must be at least 6 characters");
       }
-      
-      const res = await fetch('/api/user/password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+
+      const res = await fetch("/api/user/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || 'Failed to change password');
+        throw new Error(error.error || "Failed to change password");
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success('Password changed successfully');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      toast.success("Password changed successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -110,14 +119,14 @@ export default function ProfilePage() {
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'SUPER_ADMIN':
-        return 'bg-red-600/20 text-red-400';
-      case 'SUPPLIER':
-        return 'bg-blue-600/20 text-blue-400';
-      case 'RESELLER':
-        return 'bg-emerald-600/20 text-emerald-400';
+      case "SUPER_ADMIN":
+        return "bg-red-600/20 text-red-400";
+      case "SUPPLIER":
+        return "bg-blue-600/20 text-blue-400";
+      case "RESELLER":
+        return "bg-emerald-600/20 text-emerald-400";
       default:
-        return 'bg-zinc-600/20 text-zinc-400';
+        return "bg-zinc-600/20 text-zinc-400";
     }
   };
 
@@ -133,7 +142,9 @@ export default function ProfilePage() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-white">My Profile</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-white">
+          My Profile
+        </h1>
         <p className="text-zinc-400">Manage your account settings</p>
       </div>
 
@@ -159,8 +170,8 @@ export default function ProfilePage() {
 
             {/* Role Badge */}
             <div className="flex justify-center">
-              <Badge className={getRoleBadgeColor(profile?.role || '')}>
-                {profile?.role?.replace('_', ' ')}
+              <Badge className={getRoleBadgeColor(profile?.role || "")}>
+                {profile?.role?.replace("_", " ")}
               </Badge>
             </div>
 
@@ -169,9 +180,9 @@ export default function ProfilePage() {
               <div className="flex justify-center">
                 <div
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
-                  style={{ 
-                    backgroundColor: `${profile.tier.color || '#CD7F32'}20`,
-                    color: profile.tier.color || '#CD7F32'
+                  style={{
+                    backgroundColor: `${profile.tier.color || "#CD7F32"}20`,
+                    color: profile.tier.color || "#CD7F32",
                   }}
                 >
                   <Star className="h-4 w-4" />
@@ -208,7 +219,9 @@ export default function ProfilePage() {
                   Joined
                 </span>
                 <span className="text-white text-xs">
-                  {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : '-'}
+                  {profile?.createdAt
+                    ? new Date(profile.createdAt).toLocaleDateString()
+                    : "-"}
                 </span>
               </div>
             </div>
@@ -245,15 +258,19 @@ export default function ProfilePage() {
                 <div className="space-y-2">
                   <Label className="text-zinc-400">Email</Label>
                   <Input
-                    value={profile?.email || ''}
+                    value={profile?.email || ""}
                     disabled
                     className="bg-zinc-800 border-zinc-700 text-zinc-500"
                   />
-                  <p className="text-xs text-zinc-500">Email cannot be changed</p>
+                  <p className="text-xs text-zinc-500">
+                    Email cannot be changed
+                  </p>
                 </div>
                 <Button
                   type="submit"
-                  disabled={updateProfileMutation.isPending || name === profile?.name}
+                  disabled={
+                    updateProfileMutation.isPending || name === profile?.name
+                  }
                   className="bg-emerald-600 hover:bg-emerald-700"
                 >
                   {updateProfileMutation.isPending ? (

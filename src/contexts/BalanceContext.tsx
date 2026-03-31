@@ -19,9 +19,7 @@ const BalanceContext = createContext<BalanceContextType | null>(null);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const session = useSession();
-
-  const status = session?.status ?? "unauthenticated"; // ✅ FIX
+  const { status } = useSession();
 
   const refreshBalance = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["user-balance"] });

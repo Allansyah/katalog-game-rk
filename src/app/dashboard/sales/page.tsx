@@ -1,8 +1,7 @@
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   History,
   DollarSign,
@@ -10,41 +9,44 @@ import {
   CheckCircle,
   Gamepad2,
   Loader2,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useEffect } from 'react';
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useEffect } from "react";
 
 export default function SalesHistoryPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sales-history'],
+    queryKey: ["sales-history"],
     queryFn: async () => {
-      const res = await fetch('/api/sales');
+      const res = await fetch("/api/sales");
       return res.json();
     },
-    enabled: status === 'authenticated' && session?.user?.role === 'SUPPLIER',
+    enabled: status === "authenticated" && session?.user?.role === "SUPPLIER",
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated' || (status === 'authenticated' && session?.user?.role !== 'SUPPLIER')) {
-      router.push('/dashboard/overview');
+    if (
+      status === "unauthenticated" ||
+      (status === "authenticated" && session?.user?.role !== "SUPPLIER")
+    ) {
+      router.push("/dashboard/overview");
     }
   }, [status, session, router]);
 
   const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(date).toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
@@ -52,7 +54,7 @@ export default function SalesHistoryPage() {
     );
   }
 
-  if (!session || session?.user?.role !== 'SUPPLIER') {
+  if (!session || session?.user?.role !== "SUPPLIER") {
     return null;
   }
 
@@ -90,7 +92,7 @@ export default function SalesHistoryPage() {
               <div>
                 <p className="text-xs text-zinc-400">Total Earnings</p>
                 <p className="text-xl font-bold text-white">
-                  Rp {data?.summary?.totalEarnings?.toLocaleString() || '0'}
+                  Rp {data?.summary?.totalEarnings?.toLocaleString() || "0"}
                 </p>
               </div>
             </div>
@@ -106,7 +108,7 @@ export default function SalesHistoryPage() {
               <div>
                 <p className="text-xs text-zinc-400">Pending Earnings</p>
                 <p className="text-xl font-bold text-white">
-                  Rp {data?.summary?.pendingEarnings?.toLocaleString() || '0'}
+                  Rp {data?.summary?.pendingEarnings?.toLocaleString() || "0"}
                 </p>
               </div>
             </div>
@@ -150,37 +152,60 @@ export default function SalesHistoryPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-zinc-800">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Account</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Game</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Buyer</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Amount</th>
-                    <th className="text-center py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Status</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Date</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Account
+                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Game
+                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Buyer
+                    </th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Amount
+                    </th>
+                    <th className="text-center py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Status
+                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Date
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {data?.sales?.map((sale: any) => (
-                    <tr key={sale.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                    <tr
+                      key={sale.id}
+                      className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
+                    >
                       <td className="py-3 px-4">
-                        <span className="font-mono text-sm text-white">{sale.account.publicId}</span>
+                        <span className="font-mono text-sm text-white">
+                          {sale.account.publicId}
+                        </span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <Gamepad2 className="w-4 h-4 text-emerald-400" />
-                          <span className="text-zinc-300">{sale.account.game.name}</span>
+                          <span className="text-zinc-300">
+                            {sale.account.game.name}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <div>
                           <p className="text-zinc-300">{sale.reseller.name}</p>
-                          <p className="text-xs text-zinc-500">{sale.reseller.email}</p>
+                          <p className="text-xs text-zinc-500">
+                            {sale.reseller.email}
+                          </p>
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="font-semibold text-emerald-400">Rp {sale.basePrice.toLocaleString()}</span>
+                        <span className="font-semibold text-emerald-400">
+                          Rp {sale.basePrice.toLocaleString()}
+                        </span>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        {sale.pendingBalance?.status === 'PENDING' ? (
+                        {sale.pendingBalance?.status === "PENDING" ? (
                           <Badge className="bg-amber-600/20 text-amber-400 hover:bg-amber-600/30">
                             <Clock className="w-3 h-3 mr-1" /> Pending
                           </Badge>
@@ -191,9 +216,14 @@ export default function SalesHistoryPage() {
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="text-sm text-zinc-400">{formatDate(sale.createdAt)}</span>
-                        {sale.pendingBalance?.status === 'PENDING' && (
-                          <p className="text-xs text-amber-400">Releases: {formatDate(sale.pendingBalance.releaseDate)}</p>
+                        <span className="text-sm text-zinc-400">
+                          {formatDate(sale.createdAt)}
+                        </span>
+                        {sale.pendingBalance?.status === "PENDING" && (
+                          <p className="text-xs text-amber-400">
+                            Releases:{" "}
+                            {formatDate(sale.pendingBalance.releaseDate)}
+                          </p>
                         )}
                       </td>
                     </tr>

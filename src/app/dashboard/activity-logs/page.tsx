@@ -1,8 +1,7 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+"use client";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   User,
@@ -14,25 +13,25 @@ import {
   Eye,
   Monitor,
   MapPin,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ActivityLog {
   id: string;
@@ -70,63 +69,78 @@ interface ActivityLogsResponse {
 // Action labels and colors
 const actionConfig: Record<string, { label: string; color: string }> = {
   // Authentication
-  LOGIN: { label: 'Login', color: 'bg-green-500' },
-  LOGOUT: { label: 'Logout', color: 'bg-gray-500' },
-  LOGIN_FAILED: { label: 'Login Failed', color: 'bg-red-500' },
-  
+  LOGIN: { label: "Login", color: "bg-green-500" },
+  LOGOUT: { label: "Logout", color: "bg-gray-500" },
+  LOGIN_FAILED: { label: "Login Failed", color: "bg-red-500" },
+
   // User Management
-  USER_CREATE: { label: 'Create User', color: 'bg-blue-500' },
-  USER_UPDATE: { label: 'Update User', color: 'bg-blue-500' },
-  USER_DELETE: { label: 'Delete User', color: 'bg-red-500' },
-  USER_BAN: { label: 'Ban User', color: 'bg-red-500' },
-  USER_UNBAN: { label: 'Unban User', color: 'bg-green-500' },
-  
+  USER_CREATE: { label: "Create User", color: "bg-blue-500" },
+  USER_UPDATE: { label: "Update User", color: "bg-blue-500" },
+  USER_DELETE: { label: "Delete User", color: "bg-red-500" },
+  USER_BAN: { label: "Ban User", color: "bg-red-500" },
+  USER_UNBAN: { label: "Unban User", color: "bg-green-500" },
+
   // Account Management
-  ACCOUNT_CREATE: { label: 'Create Account', color: 'bg-blue-500' },
-  ACCOUNT_UPDATE: { label: 'Update Account', color: 'bg-blue-500' },
-  ACCOUNT_DELETE: { label: 'Delete Account', color: 'bg-red-500' },
-  ACCOUNT_EXTRACT: { label: 'Extract Account', color: 'bg-purple-500' },
-  
+  ACCOUNT_CREATE: { label: "Create Account", color: "bg-blue-500" },
+  ACCOUNT_UPDATE: { label: "Update Account", color: "bg-blue-500" },
+  ACCOUNT_DELETE: { label: "Delete Account", color: "bg-red-500" },
+  ACCOUNT_EXTRACT: { label: "Extract Account", color: "bg-purple-500" },
+
   // Game & Character
-  GAME_CREATE: { label: 'Create Game', color: 'bg-blue-500' },
-  GAME_UPDATE: { label: 'Update Game', color: 'bg-blue-500' },
-  GAME_DELETE: { label: 'Delete Game', color: 'bg-red-500' },
-  CHARACTER_CREATE: { label: 'Create Character', color: 'bg-blue-500' },
-  CHARACTER_UPDATE: { label: 'Update Character', color: 'bg-blue-500' },
-  CHARACTER_DELETE: { label: 'Delete Character', color: 'bg-red-500' },
-  
+  GAME_CREATE: { label: "Create Game", color: "bg-blue-500" },
+  GAME_UPDATE: { label: "Update Game", color: "bg-blue-500" },
+  GAME_DELETE: { label: "Delete Game", color: "bg-red-500" },
+  CHARACTER_CREATE: { label: "Create Character", color: "bg-blue-500" },
+  CHARACTER_UPDATE: { label: "Update Character", color: "bg-blue-500" },
+  CHARACTER_DELETE: { label: "Delete Character", color: "bg-red-500" },
+
   // Tier Management
-  TIER_CREATE: { label: 'Create Tier', color: 'bg-blue-500' },
-  TIER_UPDATE: { label: 'Update Tier', color: 'bg-blue-500' },
-  TIER_DELETE: { label: 'Delete Tier', color: 'bg-red-500' },
-  
+  TIER_CREATE: { label: "Create Tier", color: "bg-blue-500" },
+  TIER_UPDATE: { label: "Update Tier", color: "bg-blue-500" },
+  TIER_DELETE: { label: "Delete Tier", color: "bg-red-500" },
+
   // Finance
-  TOPUP_REQUEST: { label: 'Topup Request', color: 'bg-yellow-500' },
-  TOPUP_APPROVE: { label: 'Approve Topup', color: 'bg-green-500' },
-  TOPUP_REJECT: { label: 'Reject Topup', color: 'bg-red-500' },
-  WITHDRAW_REQUEST: { label: 'Withdraw Request', color: 'bg-yellow-500' },
-  WITHDRAW_APPROVE: { label: 'Approve Withdraw', color: 'bg-green-500' },
-  WITHDRAW_REJECT: { label: 'Reject Withdraw', color: 'bg-red-500' },
-  TRANSFER_BALANCE: { label: 'Transfer Balance', color: 'bg-purple-500' },
-  
+  TOPUP_REQUEST: { label: "Topup Request", color: "bg-yellow-500" },
+  TOPUP_APPROVE: { label: "Approve Topup", color: "bg-green-500" },
+  TOPUP_REJECT: { label: "Reject Topup", color: "bg-red-500" },
+  WITHDRAW_REQUEST: { label: "Withdraw Request", color: "bg-yellow-500" },
+  WITHDRAW_APPROVE: { label: "Approve Withdraw", color: "bg-green-500" },
+  WITHDRAW_REJECT: { label: "Reject Withdraw", color: "bg-red-500" },
+  TRANSFER_BALANCE: { label: "Transfer Balance", color: "bg-purple-500" },
+
   // Settings
-  PLATFORM_SETTINGS_UPDATE: { label: 'Update Settings', color: 'bg-orange-500' },
-  
+  PLATFORM_SETTINGS_UPDATE: {
+    label: "Update Settings",
+    color: "bg-orange-500",
+  },
+
   // Payment Methods & Packages
-  PAYMENT_METHOD_CREATE: { label: 'Create Payment Method', color: 'bg-blue-500' },
-  PAYMENT_METHOD_UPDATE: { label: 'Update Payment Method', color: 'bg-blue-500' },
-  PAYMENT_METHOD_DELETE: { label: 'Delete Payment Method', color: 'bg-red-500' },
-  TOPUP_PACKAGE_CREATE: { label: 'Create Package', color: 'bg-blue-500' },
-  TOPUP_PACKAGE_UPDATE: { label: 'Update Package', color: 'bg-blue-500' },
-  TOPUP_PACKAGE_DELETE: { label: 'Delete Package', color: 'bg-red-500' },
-  
+  PAYMENT_METHOD_CREATE: {
+    label: "Create Payment Method",
+    color: "bg-blue-500",
+  },
+  PAYMENT_METHOD_UPDATE: {
+    label: "Update Payment Method",
+    color: "bg-blue-500",
+  },
+  PAYMENT_METHOD_DELETE: {
+    label: "Delete Payment Method",
+    color: "bg-red-500",
+  },
+  TOPUP_PACKAGE_CREATE: { label: "Create Package", color: "bg-blue-500" },
+  TOPUP_PACKAGE_UPDATE: { label: "Update Package", color: "bg-blue-500" },
+  TOPUP_PACKAGE_DELETE: { label: "Delete Package", color: "bg-red-500" },
+
   // Profile
-  PASSWORD_CHANGE: { label: 'Change Password', color: 'bg-orange-500' },
-  PROFILE_UPDATE: { label: 'Update Profile', color: 'bg-blue-500' },
+  PASSWORD_CHANGE: { label: "Change Password", color: "bg-orange-500" },
+  PROFILE_UPDATE: { label: "Update Profile", color: "bg-blue-500" },
 };
 
 function ActionBadge({ action }: { action: string }) {
-  const config = actionConfig[action] || { label: action, color: 'bg-gray-500' };
+  const config = actionConfig[action] || {
+    label: action,
+    color: "bg-gray-500",
+  };
   return (
     <Badge className={`${config.color} text-white text-xs`}>
       {config.label}
@@ -136,12 +150,12 @@ function ActionBadge({ action }: { action: string }) {
 
 function formatDateTime(dateString: string) {
   const date = new Date(dateString);
-  return date.toLocaleString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return date.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -153,7 +167,7 @@ function formatTimeAgo(dateString: string) {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return 'Just now';
+  if (diffMins < 1) return "Just now";
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
@@ -175,23 +189,26 @@ export default function ActivityLogsPage() {
     entityTypes: [] as string[],
     actions: [] as string[],
   });
-  
+
   // Filter state
-  const [selectedAction, setSelectedAction] = useState<string>('all');
-  const [selectedEntityType, setSelectedEntityType] = useState<string>('all');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [selectedAction, setSelectedAction] = useState<string>("all");
+  const [selectedEntityType, setSelectedEntityType] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
+
   // Detail modal
   const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
 
   // Check authorization
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    } else if (status === 'authenticated' && session?.user?.role !== 'SUPER_ADMIN') {
-      router.push('/dashboard/overview');
+    if (status === "unauthenticated") {
+      router.push("/login");
+    } else if (
+      status === "authenticated" &&
+      session?.user?.role !== "SUPER_ADMIN"
+    ) {
+      router.push("/dashboard/overview");
     }
   }, [status, session, router]);
 
@@ -200,35 +217,47 @@ export default function ActivityLogsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set('page', pagination.page.toString());
-      params.set('limit', pagination.limit.toString());
-      if (selectedAction !== 'all') params.set('action', selectedAction);
-      if (selectedEntityType !== 'all') params.set('entityType', selectedEntityType);
-      if (startDate) params.set('startDate', startDate);
-      if (endDate) params.set('endDate', endDate);
+      params.set("page", pagination.page.toString());
+      params.set("limit", pagination.limit.toString());
+      if (selectedAction !== "all") params.set("action", selectedAction);
+      if (selectedEntityType !== "all")
+        params.set("entityType", selectedEntityType);
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
 
       const response = await fetch(`/api/activity-logs?${params.toString()}`);
       if (response.ok) {
         const data: ActivityLogsResponse = await response.json();
         setLogs(data.logs);
-        setPagination(prev => ({ ...prev, total: data.pagination.total, totalPages: data.pagination.totalPages }));
+        setPagination((prev) => ({
+          ...prev,
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages,
+        }));
         setFilters(data.filters);
       }
     } catch (error) {
-      console.error('Failed to fetch activity logs:', error);
+      console.error("Failed to fetch activity logs:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (session?.user?.role === 'SUPER_ADMIN') {
+    if (session?.user?.role === "SUPER_ADMIN") {
       fetchLogs();
     }
-  }, [session, pagination.page, selectedAction, selectedEntityType, startDate, endDate]);
+  }, [
+    session,
+    pagination.page,
+    selectedAction,
+    selectedEntityType,
+    startDate,
+    endDate,
+  ]);
 
   // Filter by search term (client-side)
-  const filteredLogs = logs.filter(log => {
+  const filteredLogs = logs.filter((log) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
@@ -239,7 +268,7 @@ export default function ActivityLogsPage() {
     );
   });
 
-  if (status === 'loading' || !session || session.user.role !== 'SUPER_ADMIN') {
+  if (status === "loading" || !session || session.user.role !== "SUPER_ADMIN") {
     return null;
   }
 
@@ -286,7 +315,7 @@ export default function ActivityLogsPage() {
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
                 <SelectItem value="all">All Actions</SelectItem>
-                {filters.actions.map(action => (
+                {filters.actions.map((action) => (
                   <SelectItem key={action} value={action}>
                     {actionConfig[action]?.label || action}
                   </SelectItem>
@@ -295,14 +324,17 @@ export default function ActivityLogsPage() {
             </Select>
 
             {/* Entity type filter */}
-            <Select value={selectedEntityType} onValueChange={setSelectedEntityType}>
+            <Select
+              value={selectedEntityType}
+              onValueChange={setSelectedEntityType}
+            >
               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
                 <SelectItem value="all">All Types</SelectItem>
-                {filters.entityTypes.map(type => (
-                  <SelectItem key={type} value={type || ''}>
+                {filters.entityTypes.map((type) => (
+                  <SelectItem key={type} value={type || ""}>
                     {type}
                   </SelectItem>
                 ))}
@@ -342,7 +374,10 @@ export default function ActivityLogsPage() {
           {loading ? (
             <div className="space-y-3">
               {[...Array(10)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-3 bg-zinc-800/50 rounded-lg">
+                <div
+                  key={i}
+                  className="flex items-center gap-4 p-3 bg-zinc-800/50 rounded-lg"
+                >
                   <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-1/4" />
@@ -379,7 +414,7 @@ export default function ActivityLogsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-white truncate">
-                        {log.user?.name || 'Unknown User'}
+                        {log.user?.name || "Unknown User"}
                       </span>
                       <ActionBadge action={log.action} />
                       {log.entityName && (
@@ -391,7 +426,7 @@ export default function ActivityLogsPage() {
                     <div className="flex items-center gap-4 text-xs text-zinc-500 mt-1">
                       <span className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        {log.user?.role || 'Unknown'}
+                        {log.user?.role || "Unknown"}
                       </span>
                       {log.ipAddress && (
                         <span className="flex items-center gap-1">
@@ -432,7 +467,9 @@ export default function ActivityLogsPage() {
                   variant="outline"
                   size="sm"
                   disabled={pagination.page <= 1}
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                  }
                   className="border-zinc-700 text-zinc-300"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -442,7 +479,9 @@ export default function ActivityLogsPage() {
                   variant="outline"
                   size="sm"
                   disabled={pagination.page >= pagination.totalPages}
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
                   className="border-zinc-700 text-zinc-300"
                 >
                   Next
@@ -467,7 +506,9 @@ export default function ActivityLogsPage() {
             <div className="space-y-4">
               {/* Action */}
               <div>
-                <label className="text-xs text-zinc-500 uppercase">Action</label>
+                <label className="text-xs text-zinc-500 uppercase">
+                  Action
+                </label>
                 <div className="mt-1">
                   <ActionBadge action={selectedLog.action} />
                 </div>
@@ -478,11 +519,15 @@ export default function ActivityLogsPage() {
                 <label className="text-xs text-zinc-500 uppercase">User</label>
                 <div className="mt-1 flex items-center gap-2">
                   <div className="h-8 w-8 rounded-full bg-zinc-700 flex items-center justify-center">
-                    {selectedLog.user?.name?.charAt(0).toUpperCase() || 'U'}
+                    {selectedLog.user?.name?.charAt(0).toUpperCase() || "U"}
                   </div>
                   <div>
-                    <div className="font-medium">{selectedLog.user?.name || 'Unknown'}</div>
-                    <div className="text-sm text-zinc-400">{selectedLog.user?.email}</div>
+                    <div className="font-medium">
+                      {selectedLog.user?.name || "Unknown"}
+                    </div>
+                    <div className="text-sm text-zinc-400">
+                      {selectedLog.user?.email}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -490,10 +535,16 @@ export default function ActivityLogsPage() {
               {/* Entity */}
               {selectedLog.entityType && (
                 <div>
-                  <label className="text-xs text-zinc-500 uppercase">Entity</label>
+                  <label className="text-xs text-zinc-500 uppercase">
+                    Entity
+                  </label>
                   <div className="mt-1 text-sm">
-                    <span className="text-zinc-400">{selectedLog.entityType}:</span>{' '}
-                    <span className="text-white">{selectedLog.entityName || selectedLog.entityId}</span>
+                    <span className="text-zinc-400">
+                      {selectedLog.entityType}:
+                    </span>{" "}
+                    <span className="text-white">
+                      {selectedLog.entityName || selectedLog.entityId}
+                    </span>
                   </div>
                 </div>
               )}
@@ -501,7 +552,9 @@ export default function ActivityLogsPage() {
               {/* Details */}
               {selectedLog.details && (
                 <div>
-                  <label className="text-xs text-zinc-500 uppercase">Details</label>
+                  <label className="text-xs text-zinc-500 uppercase">
+                    Details
+                  </label>
                   <pre className="mt-1 p-3 bg-zinc-800 rounded-lg text-xs overflow-x-auto">
                     {JSON.stringify(JSON.parse(selectedLog.details), null, 2)}
                   </pre>
@@ -516,7 +569,7 @@ export default function ActivityLogsPage() {
                     IP Address
                   </label>
                   <div className="mt-1 text-sm text-white">
-                    {selectedLog.ipAddress || 'Unknown'}
+                    {selectedLog.ipAddress || "Unknown"}
                   </div>
                 </div>
                 <div>

@@ -1,46 +1,45 @@
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import {
-  TrendingUp,
-  Gamepad2,
-  Loader2,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useEffect } from 'react';
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { TrendingUp, Gamepad2, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect } from "react";
 
 export default function PlatformEarningsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['platform-earnings'],
+    queryKey: ["platform-earnings"],
     queryFn: async () => {
-      const res = await fetch('/api/platform-earnings');
+      const res = await fetch("/api/platform-earnings");
       return res.json();
     },
-    enabled: status === 'authenticated' && session?.user?.role === 'SUPER_ADMIN',
+    enabled:
+      status === "authenticated" && session?.user?.role === "SUPER_ADMIN",
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated' || (status === 'authenticated' && session?.user?.role !== 'SUPER_ADMIN')) {
-      router.push('/dashboard/overview');
+    if (
+      status === "unauthenticated" ||
+      (status === "authenticated" && session?.user?.role !== "SUPER_ADMIN")
+    ) {
+      router.push("/dashboard/overview");
     }
   }, [status, session, router]);
 
   const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(date).toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
@@ -48,7 +47,7 @@ export default function PlatformEarningsPage() {
     );
   }
 
-  if (!session || session?.user?.role !== 'SUPER_ADMIN') {
+  if (!session || session?.user?.role !== "SUPER_ADMIN") {
     return null;
   }
 
@@ -66,9 +65,11 @@ export default function PlatformEarningsPage() {
             <div>
               <p className="text-sm text-zinc-400">Total Platform Revenue</p>
               <p className="text-4xl font-bold text-emerald-400">
-                Rp {data?.summary?.totalEarnings?.toLocaleString() || '0'}
+                Rp {data?.summary?.totalEarnings?.toLocaleString() || "0"}
               </p>
-              <p className="text-xs text-zinc-500 mt-1">From {data?.pagination?.total || 0} transactions</p>
+              <p className="text-xs text-zinc-500 mt-1">
+                From {data?.pagination?.total || 0} transactions
+              </p>
             </div>
             <div className="p-4 rounded-lg bg-emerald-600/20">
               <TrendingUp className="w-10 h-10 text-emerald-400" />
@@ -97,36 +98,61 @@ export default function PlatformEarningsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-zinc-800">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Account</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Game</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Buyer</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Fee Amount</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">Date</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Account
+                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Game
+                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Buyer
+                    </th>
+                    <th className="text-right py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Fee Amount
+                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-zinc-400 uppercase">
+                      Date
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {data?.earnings?.map((earning: any) => (
-                    <tr key={earning.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                    <tr
+                      key={earning.id}
+                      className="border-b border-zinc-800/50 hover:bg-zinc-800/30"
+                    >
                       <td className="py-3 px-4">
-                        <span className="font-mono text-sm text-white">{earning.transaction?.account?.publicId}</span>
+                        <span className="font-mono text-sm text-white">
+                          {earning.transaction?.account?.publicId}
+                        </span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
                           <Gamepad2 className="w-4 h-4 text-emerald-400" />
-                          <span className="text-zinc-300">{earning.transaction?.account?.game?.name}</span>
+                          <span className="text-zinc-300">
+                            {earning.transaction?.account?.game?.name}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <div>
-                          <p className="text-zinc-300">{earning.transaction?.reseller?.name}</p>
-                          <p className="text-xs text-zinc-500">{earning.transaction?.reseller?.email}</p>
+                          <p className="text-zinc-300">
+                            {earning.transaction?.reseller?.name}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {earning.transaction?.reseller?.email}
+                          </p>
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="font-semibold text-emerald-400">Rp {earning.amount.toLocaleString()}</span>
+                        <span className="font-semibold text-emerald-400">
+                          Rp {earning.amount.toLocaleString()}
+                        </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="text-zinc-400 text-sm">{formatDate(earning.createdAt)}</span>
+                        <span className="text-zinc-400 text-sm">
+                          {formatDate(earning.createdAt)}
+                        </span>
                       </td>
                     </tr>
                   ))}
