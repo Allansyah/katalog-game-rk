@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import { createContext, useContext, useEffect, useCallback, ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 
 interface BalanceContextType {
   refreshBalance: () => void;
@@ -13,27 +19,30 @@ const BalanceContext = createContext<BalanceContextType | null>(null);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const { status } = useSession();
+  const session = useSession();
+
+  const status = session?.status ?? "unauthenticated"; // ✅ FIX
 
   const refreshBalance = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['user-balance'] });
+    queryClient.invalidateQueries({ queryKey: ["user-balance"] });
   }, [queryClient]);
 
   const invalidateBalance = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['user-balance'] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    queryClient.invalidateQueries({ queryKey: ["user-balance"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
   }, [queryClient]);
 
-  // Refresh balance on window focus
   useEffect(() => {
+    if (typeof window === "undefined") return; // ✅ tambahan SSR safety
+
     const handleFocus = () => {
-      if (status === 'authenticated') {
+      if (status === "authenticated") {
         refreshBalance();
       }
     };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [status, refreshBalance]);
 
   return (
@@ -46,7 +55,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 export function useBalanceContext() {
   const context = useContext(BalanceContext);
   if (!context) {
-    throw new Error('useBalanceContext must be used within BalanceProvider');
+    throw new Error("useBalanceContext must be used within BalanceProvider");
   }
   return context;
 }
